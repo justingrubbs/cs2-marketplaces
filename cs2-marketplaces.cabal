@@ -1,0 +1,92 @@
+cabal-version:      2.4
+name:               cs2-marketplaces
+
+-- The package version.
+-- See the Haskell package versioning policy (PVP) for standards
+-- guiding when and how versions should be incremented.
+-- https://pvp.haskell.org
+-- PVP summary:     +-+------- breaking API changes
+--                  | | +----- non-breaking API additions
+--                  | | | +--- code changes with no API change
+version:            0.1.0.0
+
+synopsis: Servant bindings to CS2 marketplaces 
+
+description: This package provides comprehensive and type-safe bindings
+            to various CS2 marketplaces, as well as a unified interface.
+
+license:            BSD-3-Clause
+
+license-file:       LICENSE
+
+author:             Justin Grubbs
+
+maintainer:         justin.grubbs@outlook.com
+
+build-type:         Simple
+
+extra-doc-files:    CHANGELOG.md
+
+-- Extra source files to be distributed with the package, such as examples, or a tutorial module.
+-- extra-source-files:
+
+source-repository head
+    type:           git
+    location:       https://github.com/justingrubbs/cs2-marketplaces
+
+common warnings
+    ghc-options: -Wall
+
+common extensions
+    default-extensions:
+        DataKinds
+        , DeriveGeneric
+        , LambdaCase
+        , OverloadedStrings
+        , TypeOperators
+        , OverloadedRecordDot
+        , TypeOperators
+
+library
+    import:           warnings, extensions
+    exposed-modules:  
+                    CS2.Conversion
+                    , CS2.Errors
+                    , CS2.Marketplaces
+                    , CS2.Marketplaces.CSFloat
+                    , CS2.Marketplaces.CSFloat.Types
+                    , CS2.Marketplaces.DMarket
+                    , CS2.Marketplaces.DMarket.Types
+                    , CS2.Marketplaces.Skinport
+                    , CS2.Marketplaces.Skinport.Types
+    -- other-modules:
+    -- other-extensions:
+    build-depends:    
+                    base ^>=4.20.2.0
+                    , aeson
+                    , bytestring
+                    , brotli
+                    , containers
+                    , cryptonite
+                    , http-client
+                    , http-client-tls
+                    , servant
+                    , servant-client
+                    , servant-client-core
+                    , text
+    hs-source-dirs:   src
+    default-language: Haskell2010
+
+test-suite cs2-marketplaces-test
+    import:           warnings, extensions
+    default-language: Haskell2010
+    -- other-modules:
+    -- other-extensions:
+    type:             exitcode-stdio-1.0
+    hs-source-dirs:   test
+    main-is:          Main.hs
+    -- Test dependencies.
+    build-depends:
+        base ^>=4.20.2.0,
+        cs2-marketplaces
+        , dotenv
