@@ -1,0 +1,129 @@
+{
+  "id": "993484676519824853",
+  "created_at": "2026-07-04T11:53:24.935521Z",
+  "type": "auction",
+  "price": 314564,
+  "state": "listed",
+  "seller": {
+    "away": false,
+    "flags": 48,
+    "obfuscated_id": "3253451117128901583",
+    "online": false,
+    "stall_public": false,
+    "statistics": {
+      "median_trade_time": 29,
+      "total_avoided_trades": 0,
+      "total_failed_trades": 0,
+      "total_trades": 21,
+      "total_verified_trades": 21
+    }
+  },
+  "reference": {
+    "base_price": 1151224,
+    "float_factor": 1.00997,
+    "predicted_price": 1163049,
+    "keychain_price": 344,
+    "quantity": 1,
+    "last_updated": "2026-07-07T17:54:47.390291Z"
+  },
+  "item": {
+    "asset_id": "52571495984",
+    "def_index": 9,
+    "paint_index": 446,
+    "paint_seed": 500,
+    "float_value": 0.11618434637784958,
+    "icon_url": "i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIGz3UqlXOLrxM-vMGmW8VNxu5Dx60noTyLwiYbf_jdk4veqfbdsH_GEHlicyOl-pK85TC23wk12tWSGnNr6JXqRPVUnA5J5RLIKshS-l4HuYbji7lfajdgU02yg2bOcOBD3",
+    "is_stattrak": false,
+    "is_souvenir": true,
+    "rarity": 6,
+    "quality": 12,
+    "market_hash_name": "Souvenir AWP | Medusa (Minimal Wear)",
+    "stickers": [
+      {
+        "stickerId": 1691,
+        "slot": 0,
+        "icon_url": "https://steamcdn-a.akamaihd.net/apps/730/icons/econ/stickers/tournament_assets/de_inferno_gold_large.7492f900250c7809ea350a2e45c0e0c3dc106547.png",
+        "name": "Sticker | Inferno (Gold)"
+      },
+      {
+        "stickerId": 10400,
+        "slot": 2,
+        "icon_url": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGJai0ki7VeTHjMmuOXSQ61MnpNWipVToVAfOmZns-WwNuPD-PP09JanCWjCVxLYjtrkwSX7lwBt3sTuHnompcnySPAJzWZUjW6dU5QvFMuIt",
+        "name": "Sticker | MOUZ (Gold) | Cologne 2026",
+        "reference": {
+          "price": 4243,
+          "quantity": 13,
+          "updated_at": "2026-07-06T00:52:43.959529Z"
+        }
+      },
+      {
+        "stickerId": 10396,
+        "slot": 3,
+        "icon_url": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGJai0ki7VeTHjMmuOXSQ61MnpNWipV_yUxTOmZns-WxYvqH5MfVudqPDXWPDxbsvsuRqTHi2wkR26j6Azdf_dH7GOFAkD8dxW6dU5dUoi94N",
+        "name": "Sticker | FURIA (Gold) | Cologne 2026",
+        "reference": {
+          "price": 8863,
+          "quantity": 6,
+          "updated_at": "2026-07-06T00:52:39.446908Z"
+        }
+      },
+      {
+        "stickerId": 10689,
+        "slot": 4,
+        "icon_url": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGJai0ki7VeTHjMmuOXSQ61MnpNWipUruRiLlkYT67itk6P2ibOo9IqGQVzGSwrom5uQ6TX3kkx4h5j_Tntr7I3rGOA4nCMZ1Q7ICtEO4jJS5YOFwjMIb",
+        "name": "Sticker | torzsi (Gold) | Cologne 2026",
+        "reference": {
+          "price": 843,
+          "quantity": 7,
+          "updated_at": "2026-07-06T02:53:53.664158Z"
+        }
+      }
+    ],
+    "keychains": [
+      {
+        "stickerId": 76,
+        "slot": 0,
+        "offset_x": 8.480332,
+        "offset_y": 1.3715816,
+        "offset_z": 11.276955,
+        "pattern": 4606,
+        "icon_url": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGI6zwki4Uf_a0IWlJ3mY6ls6_4TL7lvYTh7yi5r0sycI7av2MPFvdKTAXTeUkb4n5eQ7GHqxw0l2627Xy9_8dXufb1R0DZpuBbldqSZztl4",
+        "name": "Charm | Eye of Ball",
+        "reference": {
+          "price": 349,
+          "quantity": 408,
+          "updated_at": "2026-07-06T01:53:03.593304Z"
+        }
+      }
+    ],
+    "low_rank": 4,
+    "high_rank": 11,
+    "tradable": 0,
+    "inspect_link": "steam://rungame/730/76561202255233023/+csgo_econ_action_preview%200010B0BC85ECC301180920BE032806300C388FE4B7EF0340F403620A0800109B0D1D00000000620A080210A0511D00000000620A0803109C511D00000000620A080410C1531D00000000A2011B0800104C1D000000003D71AF074145FC8FAF3F4D686E344150FE23B1B5CB56",
+    "cs2_screenshot_id": "3520133968642360545",
+    "cs2_screenshot_at": "2026-07-01T18:32:56.577383Z",
+    "is_commodity": false,
+    "type": "skin",
+    "rarity_name": "Covert",
+    "type_name": "Skin",
+    "item_name": "AWP | Medusa",
+    "wear_name": "Minimal Wear",
+    "description": "It has been custom painted with the image of a gorgon.\\n\\n<i>If you can see me, you're already dead</i>",
+    "collection": "The Gods and Monsters Collection",
+    "badges": [
+      "bronze_lowest_float"
+    ],
+    "serialized_inspect": "steam://rungame/730/76561202255233023/+csgo_econ_action_preview%200010B0BC85ECC301180920BE032806300C388FE4B7EF0340F403620A0800109B0D1D00000000620A080210A0511D00000000620A0803109C511D00000000620A080410C1531D00000000A2011B0800104C1D000000003D71AF074145FC8FAF3F4D686E344150FE23B1B5CB56",
+    "gs_sig": "7ea45335d08c77bd78eb"
+  },
+  "is_seller": false,
+  "min_offer_price": 305128,
+  "max_offer_discount": 300,
+  "is_watchlisted": false,
+  "watchers": 5,
+  "auction_details": {
+    "reserve_price": 314564,
+    "expires_at": "2026-07-11T11:53:24.93346Z",
+    "min_next_bid": 314564
+  }
+}
