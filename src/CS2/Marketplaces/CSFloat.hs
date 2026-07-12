@@ -1,36 +1,97 @@
-module CS2.Marketplaces.CSFloat where
+module CS2.Marketplaces.CSFloat (
+    module CS2.Marketplaces.CSFloat.Types,
+    CSFloatConfig,
+    mkCSFloatConfig,
+    -- delete
+    ListingsQuery (..),
+    defaultListingsQuery,
+    getListings',
+) where
 
+import CS2.Marketplaces.CSFloat.API
 import CS2.Marketplaces.CSFloat.Types
-import Data.Text
-import GHC.Generics (Generic)
-import Servant.API
+import Data.Text (Text)
+import Network.HTTP.Client
+import Network.HTTP.Client.TLS
+import Servant.Client
+import Servant.Client.Generic
 
-data CSFloatConfig = CSFloatConfig {apiKey :: Text}
-
-data CSFloatAPI mode = CSFloatAPI
-    { getListings ::
-        mode
-            :- Header' '[Required] "Authorization" Text
-                :> "api"
-                :> "v1"
-                :> "listings"
-                :> QueryParam "cursor" Text
-                :> QueryParam "limit" Int
-                :> QueryParam "sort_by" CSFloatSortBy
-                :> QueryParam "category" CSFloatCategory
-                :> QueryParam "def_index" Int
-                :> QueryParam "min_float" Double
-                :> QueryParam "max_float" Double
-                :> QueryParam "rarity" Int
-                :> QueryParam "paint_seed" Int
-                :> QueryParam "paint_index" Int
-                :> QueryParam "user_id" Int
-                :> QueryParam "collection" Text
-                :> QueryParam "min_price" Int
-                :> QueryParam "max_price" Int
-                :> QueryParam "market_hash_name" Text
-                :> QueryParam "type" CSFloatType
-                :> QueryParam "stickers" Text
-                :> Get '[JSON] GetListingsResponse
+data CSFloatConfig = CSFloatConfig
+    { apiKey :: Text
+    , clientEnv :: ClientEnv
     }
-    deriving (Generic)
+
+csfloatClient :: CSFloatAPI (AsClientT ClientM)
+csfloatClient = genericClient
+
+mkCSFloatConfig :: Text -> IO CSFloatConfig
+mkCSFloatConfig key = do
+    mgr <- newManager tlsManagerSettings
+    let env = mkClientEnv mgr (BaseUrl Https "csfloat.com" 443 "")
+    pure $ CSFloatConfig key env
+
+data ListingsQuery = ListingsQuery
+    { lqCursor :: Maybe Text
+    , lqLimit :: Maybe Int
+    , lqSortBy :: Maybe CSFloatSortBy
+    , lqCategory :: Maybe CSFloatCategory
+    , lqDefIndex :: Maybe Int
+    , lqMinFloat :: Maybe Double
+    , lqMaxFloat :: Maybe Double
+    , lqRarity :: Maybe Int
+    , lqPaintSeed :: Maybe Int
+    , lqPaintIndex :: Maybe Int
+    , lqUserId :: Maybe Int
+    , lqCollection :: Maybe Text
+    , lqMinPrice :: Maybe Int
+    , lqMaxPrice :: Maybe Int
+    , lqMarketHashName :: Maybe Text
+    , lqType :: Maybe CSFloatType
+    , lqStickers :: Maybe Text
+    }
+
+defaultListingsQuery :: ListingsQuery
+defaultListingsQuery =
+    ListingsQuery
+        Nothing
+        Nothing
+        Nothing
+        Nothing
+        Nothing
+        Nothing
+        Nothing
+        Nothing
+        Nothing
+        Nothing
+        Nothing
+        Nothing
+        Nothing
+        Nothing
+        Nothing
+        Nothing
+        Nothing
+
+getListings' :: CSFloatConfig -> ListingsQuery -> IO (Either ClientError GetListingsResponse)
+getListings' cfg ListingsQuery{..} =
+    runClientM
+        ( csfloatClient.getListings
+            (apiKey cfg)
+            lqCursor
+            lqLimit
+            lqSortBy
+            lqCategory
+            lqDefIndex
+            lqMinFloat
+            lqMaxFloat
+            lqRarity
+            lqPaintSeed
+            lqPaintIndex
+            lqUserId
+            lqCollection
+            lqMinPrice
+            lqMaxPrice
+            lqMarketHashName
+            lqType
+            lqStickers
+        )
+        (clientEnv cfg)
