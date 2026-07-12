@@ -10,8 +10,8 @@ import Servant.API
 -- Response types:
 -------------------------------------------------------------------------------
 data GetListingsResponse = GetListingsResponse
-    { data_ :: [CSFloatListing]
-    , cursor :: Text
+    { data_ :: [Listing]
+    , cursor :: Maybe Text
     }
     deriving (Show, Generic)
 
@@ -24,9 +24,47 @@ instance FromJSON GetListingsResponse where
                     other -> other
                 }
 
+-- Request types:
+-------------------------------------------------------------------------------
+data PostListingRequest
+    = PostBuyNowListing
+        { asset_id :: Text
+        , price :: Int
+        , max_offer_discount :: Maybe Int
+        , description :: Maybe Text
+        , private :: Bool
+        }
+    | PostAuctionListing
+        { asset_id :: Text
+        , price :: Int
+        , max_offer_discount :: Maybe Int
+        , reserve_price :: Int
+        , duration_days :: Int
+        , description :: Maybe Text
+        , private :: Bool
+        }
+    deriving (Show, Generic)
+
+instance ToJSON PostListingRequest where
+    toJSON =
+        genericToJSON
+            defaultOptions
+                { sumEncoding = TaggedObject{tagFieldName = "type", contentsFieldName = "contents"}
+                , constructorTagModifier = \case
+                    "PostBuyNowListing" -> "buy_now"
+                    "PostAuctionListing" -> "auction"
+                    other -> other
+                }
+
+data UpdateListingPriceRequest = UpdateListingPriceRequest
+    { price :: Int
+    }
+    deriving (Show, Generic)
+    deriving anyclass (ToJSON)
+
 -- Data types:
 -------------------------------------------------------------------------------
-data CSFloatSortBy
+data SortBy
     = LowestPrice
     | HighestPrice
     | MostRecent
@@ -39,7 +77,7 @@ data CSFloatSortBy
     | NumBids
     deriving (Show)
 
-instance ToHttpApiData CSFloatSortBy where
+instance ToHttpApiData SortBy where
     toQueryParam = \case
         LowestPrice -> "lowest_price"
         HighestPrice -> "highest_price"
@@ -52,14 +90,14 @@ instance ToHttpApiData CSFloatSortBy where
         FloatRank -> "float_rank"
         NumBids -> "num_bids"
 
-data CSFloatCategory
+data Category
     = Any
     | Normal
     | StatTrak
     | Souvenir
     deriving (Show)
 
-instance ToHttpApiData CSFloatCategory where
+instance ToHttpApiData Category where
     toQueryParam t =
         let val :: Int = case t of
                 Any -> 0
@@ -68,41 +106,41 @@ instance ToHttpApiData CSFloatCategory where
                 Souvenir -> 3
          in T.show val
 
-data CSFloatType
+data Type
     = BuyNow
     | Auction
     deriving (Show)
 
-instance FromJSON CSFloatType where
-    parseJSON = withText "CSFloatType" $ \case
+instance FromJSON Type where
+    parseJSON = withText "Type" $ \case
         "buy_now" -> pure BuyNow
         "auction" -> pure Auction
-        other -> fail $ "Unknown CSFloatType: " <> T.unpack other
+        other -> fail $ "Unknown Type: " <> T.unpack other
 
-instance ToHttpApiData CSFloatType where
+instance ToHttpApiData Type where
     toQueryParam = \case
         BuyNow -> "buy_now"
         Auction -> "auction"
 
-data CSFloatListing = CSFloatListing
+data Listing = Listing
     { id :: Text
     , created_at :: UTCTime
-    , type_ :: CSFloatType
+    , type_ :: Type
     , price :: Int
-    , state :: CSFloatState
-    , seller :: CSFloatSeller
-    , reference :: CSFloatReference
-    , item :: CSFloatItem
+    , state :: State
+    , seller :: Maybe Seller
+    , reference :: Reference
+    , item :: Item
     , is_seller :: Bool
     , min_offer_price :: Maybe Int
     , max_offer_discount :: Maybe Int
     , is_watchlisted :: Bool
     , watchers :: Int
-    , auction_details :: Maybe CSFloatAuctionDetails
+    , auction_details :: Maybe AuctionDetails
     }
     deriving (Show, Generic)
 
-instance FromJSON CSFloatListing where
+instance FromJSON Listing where
     parseJSON =
         genericParseJSON
             defaultOptions
@@ -111,28 +149,28 @@ instance FromJSON CSFloatListing where
                     other -> other
                 }
 
-data CSFloatState
+data State
     = Listed
     | Other Text
     deriving (Show, Generic, Eq)
 
-instance FromJSON CSFloatState where
-    parseJSON = withText "CSFloatState" $ \case
+instance FromJSON State where
+    parseJSON = withText "State" $ \case
         "listed" -> pure Listed
         other -> pure $ Other other
 
-data CSFloatSeller = CSFloatSeller
+data Seller = Seller
     { away :: Bool
     , flags :: Int
     , obfuscated_id :: Maybe Text
     , online :: Bool
     , stall_public :: Bool
-    , statistics :: CSFloatSellerStatistics
+    , statistics :: Statistics
     }
     deriving (Show, Generic)
     deriving anyclass (FromJSON)
 
-data CSFloatSellerStatistics = CSFloatSellerStatistics
+data Statistics = Statistics
     { median_trade_time :: Int
     , total_avoided_trades :: Int
     , total_failed_trades :: Int
@@ -142,18 +180,29 @@ data CSFloatSellerStatistics = CSFloatSellerStatistics
     deriving (Show, Generic)
     deriving anyclass (FromJSON)
 
-data CSFloatReference = CSFloatReference
-    { base_price :: Int
-    , float_factor :: Maybe Double
-    , predicted_price :: Int
-    , keychain_price :: Maybe Int
-    , quantity :: Int
-    , last_updated :: UTCTime
+data Buyer = Buyer
+    { avatar :: Text
+    , away :: Bool
+    , flags :: Int
+    , online :: Bool
+    , stall_public :: Bool
+    , statistics :: Statistics
     }
     deriving (Show, Generic)
     deriving anyclass (FromJSON)
 
-data CSFloatItem = CSFloatItem
+data Reference = Reference
+    { base_price :: Maybe Int
+    , float_factor :: Maybe Double
+    , predicted_price :: Maybe Int
+    , keychain_price :: Maybe Int
+    , quantity :: Maybe Int
+    , last_updated :: Maybe UTCTime
+    }
+    deriving (Show, Generic)
+    deriving anyclass (FromJSON)
+
+data Item = Item
     { asset_id :: Text
     , def_index :: Int
     , paint_index :: Maybe Int
@@ -165,8 +214,8 @@ data CSFloatItem = CSFloatItem
     , rarity :: Int
     , quality :: Maybe Int
     , market_hash_name :: Text
-    , stickers :: Maybe [CSFloatSticker]
-    , keychains :: Maybe [CSFloatKeychain]
+    , stickers :: Maybe [Sticker]
+    , keychains :: Maybe [Keychain]
     , low_rank :: Maybe Int
     , high_rank :: Maybe Int
     , tradable :: Int
@@ -182,13 +231,12 @@ data CSFloatItem = CSFloatItem
     , description :: Maybe Text
     , collection :: Maybe Text
     , badges :: Maybe [Text]
-    , -- , badges :: [CSFloatBadge]
-      serialized_inspect :: Maybe Text
+    , serialized_inspect :: Maybe Text
     , gs_sig :: Maybe Text
     }
     deriving (Show, Generic)
 
-instance FromJSON CSFloatItem where
+instance FromJSON Item where
     parseJSON =
         genericParseJSON
             defaultOptions
@@ -197,17 +245,17 @@ instance FromJSON CSFloatItem where
                     other -> other
                 }
 
-data CSFloatSticker = CSFloatSticker
+data Sticker = Sticker
     { stickerId :: Int
     , slot :: Int
     , icon_url :: Text
     , name :: Text
-    , reference :: Maybe CSFloatStickerReference
+    , reference :: Maybe StickerReference
     }
     deriving (Show, Generic)
     deriving anyclass (FromJSON)
 
-data CSFloatStickerReference = CSFloatStickerReference
+data StickerReference = StickerReference
     { price :: Int
     , quantity :: Int
     , updated_at :: UTCTime
@@ -215,7 +263,7 @@ data CSFloatStickerReference = CSFloatStickerReference
     deriving (Show, Generic)
     deriving anyclass (FromJSON)
 
-data CSFloatKeychain = CSFloatKeychain
+data Keychain = Keychain
     { stickerId :: Int
     , slot :: Int
     , offset_x :: Double
@@ -224,12 +272,12 @@ data CSFloatKeychain = CSFloatKeychain
     , pattern :: Maybe Int
     , icon_url :: Text
     , name :: Text
-    , reference :: Maybe CSFloatKeychainReference
+    , reference :: Maybe KeychainReference
     }
     deriving (Show, Generic)
     deriving anyclass (FromJSON)
 
-data CSFloatKeychainReference = CSFloatKeychainReference
+data KeychainReference = KeychainReference
     { price :: Int
     , quantity :: Int
     , updated_at :: UTCTime
@@ -237,10 +285,233 @@ data CSFloatKeychainReference = CSFloatKeychainReference
     deriving (Show, Generic)
     deriving anyclass (FromJSON)
 
-data CSFloatAuctionDetails = CSFloatAuctionDetails
+data AuctionDetails = AuctionDetails
     { reserve_price :: Int
     , expires_at :: UTCTime
     , min_next_bid :: Int
     }
     deriving (Show, Generic)
     deriving anyclass (FromJSON)
+
+data Me = Me
+    { user :: User
+    , pending_offers :: Int
+    , actionable_trades :: Int
+    , has_unread_notifications :: Bool
+    }
+    deriving (Show, Generic)
+    deriving anyclass (FromJSON)
+
+data User = User
+    { steam_id :: Text
+    , username :: Text
+    , flags :: Int
+    , avatar :: Text
+    , email :: Text
+    , phone_number :: Text
+    , balance :: Int
+    , pending_balance :: Int
+    , stall_public :: Bool
+    , away :: Bool
+    , trade_token :: Text
+    , payment_accounts :: PaymentAccounts
+    , statistics :: UserStatistics
+    , preferences :: UserPreferences
+    , know_your_customer :: Text
+    , extension_setup_at :: UTCTime
+    , firebase_messaging :: FirebaseMessaging
+    , stripe_connect :: StripeConnect
+    , notification_topic_opt_out :: Int
+    , obfuscated_id :: Text
+    , online :: Bool
+    , fee :: Double
+    , withdraw_fee :: Double
+    , subscriptions :: [Text]
+    , has_2fa :: Bool
+    , has_api_key :: Bool
+    }
+    deriving (Show, Generic)
+    deriving anyclass (FromJSON)
+
+data PaymentAccounts = PaymentAccounts
+    { stripe_connect :: Text
+    , stripe_customer :: Text
+    }
+    deriving (Show, Generic)
+    deriving anyclass (FromJSON)
+
+data UserStatistics = UserStatistics
+    { total_sales :: Int
+    , total_purchases :: Int
+    , median_trade_time :: Int
+    , total_avoided_trades :: Int
+    , total_failed_trades :: Int
+    , total_verified_trades :: Int
+    , total_trades :: Int
+    }
+    deriving (Show, Generic)
+    deriving anyclass (FromJSON)
+
+data UserPreferences = UserPreferences
+    { offers_enabled :: Bool
+    , max_offer_discount :: Int
+    , currency :: Text
+    , language :: Text
+    , localize_item_names :: Bool
+    }
+    deriving (Show, Generic)
+    deriving anyclass (FromJSON)
+
+data FirebaseMessaging = FirebaseMessaging
+    { platform :: Maybe Text
+    , last_updated :: Maybe Text
+    }
+    deriving (Show, Generic)
+    deriving anyclass (FromJSON)
+
+data StripeConnect = StripeConnect
+    { payouts_enabled :: Bool
+    }
+    deriving (Show, Generic)
+    deriving anyclass (FromJSON)
+
+data Stall = Stall
+    { data_ :: [Listing]
+    , cursor :: Maybe Text
+    , total_count :: Int
+    , total_price :: Int
+    }
+    deriving (Show, Generic)
+
+instance FromJSON Stall where
+    parseJSON =
+        genericParseJSON
+            defaultOptions
+                { fieldLabelModifier = \case
+                    "data_" -> "data"
+                    other -> other
+                }
+
+data Transactions = Transactions
+    { transactions :: [Transaction]
+    , count :: Int
+    }
+    deriving (Show, Generic)
+    deriving anyclass (FromJSON)
+
+data Transaction = Transaction
+    { id :: Text
+    , created_at :: UTCTime
+    , user_id :: Text
+    , type_ :: Text -- scrape types; enum?
+    , details :: TransactionDetails
+    , balance_offset :: Int
+    , pending_offset :: Int
+    }
+    deriving (Show, Generic)
+
+instance FromJSON Transaction where
+    parseJSON =
+        genericParseJSON
+            defaultOptions
+                { fieldLabelModifier = \case
+                    "type_" -> "type"
+                    other -> other
+                }
+
+data TransactionDetails = TransactionDetails
+    { contract_id :: Text
+    , trade_id :: Text
+    , type_ :: Text -- scrape types; enum?
+    }
+    deriving (Show, Generic)
+
+instance FromJSON TransactionDetails where
+    parseJSON =
+        genericParseJSON
+            defaultOptions
+                { fieldLabelModifier = \case
+                    "type_" -> "type"
+                    other -> other
+                }
+
+data Watchlist = Watchlist
+    { data_ :: [Listing]
+    }
+    deriving (Show, Generic)
+
+instance FromJSON Watchlist where
+    parseJSON =
+        genericParseJSON
+            defaultOptions
+                { fieldLabelModifier = \case
+                    "data_" -> "data"
+                    other -> other
+                }
+
+data Trades = Trades
+    { trades :: [Trade]
+    , count :: Int
+    }
+    deriving (Show, Generic)
+    deriving anyclass (FromJSON)
+
+data Trade = Trade
+    { id :: Text
+    , created_at :: UTCTime
+    , buyer_id :: Text
+    , buyer :: Buyer
+    , seller_id :: Text
+    , seller :: Seller
+    , contract_id :: Text
+    , accepted_at :: UTCTime
+    , state :: Text -- scrape for statse
+    , verification_mode :: Text -- scrape for verificationModes?
+    , steam_offer :: SteamOffer
+    , verified_at :: UTCTime
+    , inventory_check_status :: Maybe Int
+    , contract :: Contract
+    , trade_url :: Text
+    , trade_token :: Text
+    , wait_for_cancel_ping :: Bool
+    , is_settlement_period :: Bool
+    }
+    deriving (Show, Generic)
+    deriving anyclass (FromJSON)
+
+data SteamOffer = SteamOffer
+    { id :: Maybe Text
+    , state :: Maybe Int -- parse for options?
+    , is_from_seller :: Bool
+    , can_cancel_at :: Maybe UTCTime
+    , sent_at :: UTCTime
+    , deadline_at :: Maybe UTCTime
+    , updated_at :: Maybe UTCTime
+    }
+    deriving (Show, Generic)
+    deriving anyclass (FromJSON)
+
+data Contract = Contract
+    { id :: Text
+    , created_at :: UTCTime
+    , type_ :: Type
+    , price :: Int
+    , state :: Text -- scrape for options
+    , seller :: Seller
+    , reference :: Reference
+    , item :: Item
+    , is_seller :: Bool
+    , is_watchlisted :: Bool
+    , watchers :: Int
+    , sold_at :: UTCTime
+    }
+    deriving (Show, Generic)
+
+instance FromJSON Contract where
+    parseJSON =
+        genericParseJSON
+            defaultOptions
+                { fieldLabelModifier = \case
+                    "type_" -> "type"
+                    other -> other
+                }
