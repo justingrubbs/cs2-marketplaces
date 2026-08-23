@@ -2,10 +2,11 @@ module Main where
 
 import CS2.Marketplaces.CSFloat
 import Configuration.Dotenv (Config (configPath), defaultConfig, loadFile)
-import qualified Data.List as L
+import Data.IORef
 import qualified Data.Text as T
 import Servant.Client (ClientError)
 import System.Environment (getEnv)
+import System.IO.Unsafe (unsafePerformIO)
 
 {- | REPL for interacting with CS2.Marketplaces.CSFloat as a typical library consumer.
   For our use case, this is useful for sifting through API responses and in ensuring the library
@@ -14,25 +15,35 @@ import System.Environment (getEnv)
 main :: IO ()
 main = putStrLn "CSFloat Repl:"
 
+{-# NOINLINE cfgRef #-}
+cfgRef :: IORef (Maybe CSFloatConfig)
+cfgRef = unsafePerformIO (newIORef Nothing)
+
 loadCfg :: IO CSFloatConfig
 loadCfg = do
     loadFile defaultConfig{configPath = ["config/.env"]}
     key <- getEnv "CSFLOAT_API_KEY"
     mkCSFloatConfig (T.pack key)
 
+-- | Loaded once per session, cached after that.
+getCfg :: IO CSFloatConfig
+getCfg =
+    readIORef cfgRef >>= \case
+        Just cfg -> pure cfg
+        Nothing -> do
+            cfg <- loadCfg
+            writeIORef cfgRef (Just cfg)
+            pure cfg
+
 -- Should not be ClientError; servant should be not relevant to consumer
-testGetListings :: IO (Either ClientError GetListingsResponse)
-testGetListings = do
-    cfg <- loadCfg
-    getListings' cfg defaultGetListingsQuery
+tryGetListings :: IO (Either ClientError GetListingsResponse)
+tryGetListings = getCfg >>= \cfg -> getListings cfg defaultGetListingsQuery
 
-testGetListing :: IO (Either ClientError Listing)
-testGetListing = do
-    cfg <- loadCfg
-    getListing' cfg 896429455789131961
+tryGetListing :: IO (Either ClientError Listing)
+tryGetListing = getCfg >>= \cfg -> getListing cfg 896429455789131961
 
-testPostBuyNowListing :: IO (Either ClientError Listing)
-testPostBuyNowListing = do
+tryPostBuyNowListing :: IO (Either ClientError Listing)
+tryPostBuyNowListing = do
     cfg <- loadCfg
     let plr =
             PostBuyNowListing
@@ -42,10 +53,10 @@ testPostBuyNowListing = do
                 , description = Just "Test posting buy now listing"
                 , private = True
                 }
-    postListing' cfg plr
+    postListing cfg plr
 
-testPostAuctionListing :: IO (Either ClientError Listing)
-testPostAuctionListing = do
+tryPostAuctionListing :: IO (Either ClientError Listing)
+tryPostAuctionListing = do
     cfg <- loadCfg
     let plr =
             PostAuctionListing
@@ -57,56 +68,42 @@ testPostAuctionListing = do
                 , description = Just "Test posting auction listing"
                 , private = True
                 }
-    postListing' cfg plr
+    postListing cfg plr
 
-testUpdateListingPrice :: IO (Either ClientError Listing)
-testUpdateListingPrice = do
-    cfg <- loadCfg
-    updateListingPrice' cfg "997340244347060303" UpdateListingPriceRequest{price = 100101}
+tryUpdateListingPrice :: IO (Either ClientError Listing)
+tryUpdateListingPrice =
+    getCfg >>= \cfg ->
+        updateListingPrice cfg "997340244347060303" UpdateListingPriceRequest{price = 100101}
 
-testDeleteListing :: IO (Either ClientError ())
-testDeleteListing = do
+tryDeleteListing :: IO (Either ClientError ())
+tryDeleteListing = do
     cfg <- loadCfg
-    postResult <- testPostBuyNowListing
-    either (pure . Left) (deleteListing' cfg . (.id)) postResult
+    postResult <- tryPostBuyNowListing
+    either (pure . Left) (deleteListing cfg . (.id)) postResult
 
-testGetMe :: IO (Either ClientError Me)
-testGetMe = do
-    cfg <- loadCfg
-    getMe' cfg
+tryGetMe :: IO (Either ClientError Me)
+tryGetMe = getCfg >>= \cfg -> getMe cfg
 
-testGetInventory :: IO (Either ClientError [Item])
-testGetInventory = do
-    cfg <- loadCfg
-    getInventory' cfg
+tryGetInventory :: IO (Either ClientError [Item])
+tryGetInventory = getCfg >>= \cfg -> getInventory cfg
 
 -- Fix cursor
-testGetStall :: IO (Either ClientError Stall)
-testGetStall = do
-    cfg <- loadCfg
-    getStall' cfg "76561198203252187" (Just "CAEQBxjaxdvSBiC5gYik7Y_A6w0ogZCWxHI46IsGivFypJ-W") Nothing
+tryGetStall :: IO (Either ClientError Stall)
+tryGetStall =
+    getCfg >>= \cfg ->
+        getStall cfg "76561198203252187" (Just "CAEQBxjaxdvSBiC5gYik7Y_A6w0ogZCWxHI46IsGivFypJ-W") Nothing
 
-testGetSales :: IO (Either ClientError [Listing])
-testGetSales = do
-    cfg <- loadCfg
-    getSales' cfg "AK-47 | Redline (Minimal Wear)" Nothing
+tryGetSales :: IO (Either ClientError [Listing])
+tryGetSales = getCfg >>= \cfg -> getSales cfg "AK-47 | Redline (Minimal Wear)" Nothing
 
-testGetTransactions :: IO (Either ClientError Transactions)
-testGetTransactions = do
-    cfg <- loadCfg
-    getTransactions' cfg (Just 1) (Just 2)
+tryGetTransactions :: IO (Either ClientError Transactions)
+tryGetTransactions = getCfg >>= \cfg -> getTransactions cfg (Just 1) (Just 2)
 
-testGetWatchlist :: IO (Either ClientError Watchlist)
-testGetWatchlist = do
-    cfg <- loadCfg
-    getWatchlist' cfg (Just 50)
+tryGetWatchlist :: IO (Either ClientError Watchlist)
+tryGetWatchlist = getCfg >>= \cfg -> getWatchlist cfg (Just 50)
 
-testDeleteWatchlist :: IO (Either ClientError ())
-testDeleteWatchlist = do 
-    cfg <- loadCfg
-    deleteWatchlist' cfg 997340244347060303
+tryDeleteWatchlist :: IO (Either ClientError ())
+tryDeleteWatchlist = getCfg >>= \cfg -> deleteWatchlist cfg 997340244347060303
 
-testGetTradeHistory :: IO (Either ClientError Trades)
-testGetTradeHistory = do
-    cfg <- loadCfg
-    getTradeHistory' cfg (Just "buyer") Nothing (Just 5)
+tryGetTradeHistory :: IO (Either ClientError Trades)
+tryGetTradeHistory = getCfg >>= \cfg -> getTradeHistory cfg (Just "buyer") Nothing (Just 5)

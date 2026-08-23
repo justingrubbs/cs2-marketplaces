@@ -66,8 +66,8 @@ defaultGetListingsQuery =
         Nothing
         Nothing
 
-getListings' :: CSFloatConfig -> GetListingsQuery -> IO (Either ClientError GetListingsResponse)
-getListings' cfg GetListingsQuery{..} =
+getListings :: CSFloatConfig -> GetListingsQuery -> IO (Either ClientError GetListingsResponse)
+getListings cfg GetListingsQuery{..} =
     runClientM
         ( csfloatClient.listingsAPI.getListings
             (apiKey cfg)
@@ -92,20 +92,20 @@ getListings' cfg GetListingsQuery{..} =
         (clientEnv cfg)
 
 -- int vs text??
-getListing' :: CSFloatConfig -> Int -> IO (Either ClientError Listing)
-getListing' cfg listingId =
+getListing :: CSFloatConfig -> Int -> IO (Either ClientError Listing)
+getListing cfg listingId =
     runClientM
         (csfloatClient.listingsAPI.getListing (apiKey cfg) listingId)
         (clientEnv cfg)
 
-postListing' :: CSFloatConfig -> PostListingRequest -> IO (Either ClientError Listing)
-postListing' cfg plr =
+postListing :: CSFloatConfig -> PostListingRequest -> IO (Either ClientError Listing)
+postListing cfg plr =
     runClientM
         (csfloatClient.listingsAPI.postListing (apiKey cfg) plr)
         (clientEnv cfg)
 
-deleteListing' :: CSFloatConfig -> Text -> IO (Either ClientError ())
-deleteListing' cfg listingId =
+deleteListing :: CSFloatConfig -> Text -> IO (Either ClientError ())
+deleteListing cfg listingId =
     runClientM
         ( csfloatClient.listingsAPI.deleteListing
             (apiKey cfg)
@@ -113,8 +113,8 @@ deleteListing' cfg listingId =
         )
         (clientEnv cfg)
 
-updateListingPrice' :: CSFloatConfig -> Text -> UpdateListingPriceRequest -> IO (Either ClientError Listing)
-updateListingPrice' cfg listingId req =
+updateListingPrice :: CSFloatConfig -> Text -> UpdateListingPriceRequest -> IO (Either ClientError Listing)
+updateListingPrice cfg listingId req =
     runClientM
         ( csfloatClient.listingsAPI.updateListingPrice
             (apiKey cfg)
@@ -123,20 +123,20 @@ updateListingPrice' cfg listingId req =
         )
         (clientEnv cfg)
 
-getMe' :: CSFloatConfig -> IO (Either ClientError Me)
-getMe' cfg =
+getMe :: CSFloatConfig -> IO (Either ClientError Me)
+getMe cfg =
     runClientM
         (csfloatClient.getMe (apiKey cfg))
         (clientEnv cfg)
 
-getInventory' :: CSFloatConfig -> IO (Either ClientError [Item])
-getInventory' cfg =
+getInventory :: CSFloatConfig -> IO (Either ClientError [Item])
+getInventory cfg =
     runClientM
         (csfloatClient.getInventory (apiKey cfg))
         (clientEnv cfg)
 
-getStall' :: CSFloatConfig -> Text -> Maybe Text -> Maybe Int -> IO (Either ClientError Stall)
-getStall' cfg steamId mcursor mlimit =
+getStall :: CSFloatConfig -> Text -> Maybe Text -> Maybe Int -> IO (Either ClientError Stall)
+getStall cfg steamId mcursor mlimit =
     runClientM
         ( csfloatClient.getStall
             steamId
@@ -145,8 +145,8 @@ getStall' cfg steamId mcursor mlimit =
         )
         (clientEnv cfg)
 
-getSales' :: CSFloatConfig -> Text -> Maybe Int -> IO (Either ClientError [Listing])
-getSales' cfg marketHashName mPaintIndex =
+getSales :: CSFloatConfig -> Text -> Maybe Int -> IO (Either ClientError [Listing])
+getSales cfg marketHashName mPaintIndex =
     runClientM
         ( csfloatClient.getSales
             marketHashName
@@ -154,8 +154,8 @@ getSales' cfg marketHashName mPaintIndex =
         )
         (clientEnv cfg)
 
-getTransactions' :: CSFloatConfig -> Maybe Int -> Maybe Int -> IO (Either ClientError Transactions)
-getTransactions' cfg mPage mLimit =
+getTransactions :: CSFloatConfig -> Maybe Int -> Maybe Int -> IO (Either ClientError Transactions)
+getTransactions cfg mPage mLimit =
     runClientM
         ( csfloatClient.getTransactions
             (apiKey cfg)
@@ -164,8 +164,8 @@ getTransactions' cfg mPage mLimit =
         )
         (clientEnv cfg)
 
-getWatchlist' :: CSFloatConfig -> Maybe Int -> IO (Either ClientError Watchlist)
-getWatchlist' cfg mLimit =
+getWatchlist :: CSFloatConfig -> Maybe Int -> IO (Either ClientError Watchlist)
+getWatchlist cfg mLimit =
     runClientM
         ( csfloatClient.getWatchlist
             (apiKey cfg)
@@ -173,8 +173,8 @@ getWatchlist' cfg mLimit =
         )
         (clientEnv cfg)
 
-deleteWatchlist' :: CSFloatConfig -> Int -> IO (Either ClientError ())
-deleteWatchlist' cfg listingId =
+deleteWatchlist :: CSFloatConfig -> Int -> IO (Either ClientError ())
+deleteWatchlist cfg listingId =
     runClientM
         ( csfloatClient.deleteWatchlist
             (apiKey cfg)
@@ -182,8 +182,8 @@ deleteWatchlist' cfg listingId =
         )
         (clientEnv cfg)
 
-getTradeHistory' :: CSFloatConfig -> Maybe Text -> Maybe Int -> Maybe Int -> IO (Either ClientError Trades)
-getTradeHistory' cfg mRole mPage mLimit =
+getTradeHistory :: CSFloatConfig -> Maybe Text -> Maybe Int -> Maybe Int -> IO (Either ClientError Trades)
+getTradeHistory cfg mRole mPage mLimit =
     runClientM
         ( csfloatClient.getTradeHistory
             (apiKey cfg)
