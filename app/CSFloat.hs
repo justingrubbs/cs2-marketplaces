@@ -195,7 +195,7 @@ fetchAllListings :: IO [Listing]
 fetchAllListings = do
     cfg <- getCfg
     fetchAllCursor
-        100
+        10
         500000
         (\mc -> fmap (\r -> (r, r.cursor)) <$> getListings cfg defaultGetListingsQuery{lqCursor = mc})
         (.data_)
@@ -204,31 +204,31 @@ fetchAllTransactions :: IO [Transaction]
 fetchAllTransactions = do
     cfg <- getCfg
     let limit = 50
-    fetchAllPaged 100 500000 limit (\page -> getTransactions cfg (Just page) (Just limit)) (.transactions) (.count)
+    fetchAllPaged 10 500000 limit (\page -> getTransactions cfg (Just page) (Just limit)) (.transactions) (.count)
 
 fetchAllTrades :: IO [Trade]
 fetchAllTrades = do
     cfg <- getCfg
     let limit = 50
-    fetchAllPaged 100 500000 limit (\page -> getTradeHistory cfg Nothing (Just page) (Just limit)) (.trades) (.count)
+    fetchAllPaged 10 500000 limit (\page -> getTradeHistory cfg Nothing (Just page) (Just limit)) (.trades) (.count)
 
-listingStates :: [Listing] -> S.Set State
+listingStates :: [Listing] -> S.Set ListingState
 listingStates = S.fromList . map (.state)
 
-transactionTypes :: [Transaction] -> S.Set Text
+transactionTypes :: [Transaction] -> S.Set TransactionType
 transactionTypes = S.fromList . map (.type_)
 
-transactionDetailsTypes :: [Transaction] -> S.Set (Maybe Text)
+transactionDetailsTypes :: [Transaction] -> S.Set (Maybe TransactionDetailsType)
 transactionDetailsTypes = S.fromList . map ((.type_) . (.details))
 
-tradeStates :: [Trade] -> S.Set Text
+tradeStates :: [Trade] -> S.Set TradeState
 tradeStates = S.fromList . map (.state)
 
-tradeVerificationModes :: [Trade] -> S.Set Text
+tradeVerificationModes :: [Trade] -> S.Set TradeVerificationMode
 tradeVerificationModes = S.fromList . map (.verification_mode)
 
-tradeSteamOfferStates :: [Trade] -> S.Set (Maybe Int)
+tradeSteamOfferStates :: [Trade] -> S.Set (Maybe SteamTradeOfferState)
 tradeSteamOfferStates = S.fromList . map ((.state) . (.steam_offer))
 
-tradeContractStates :: [Trade] -> S.Set Text
+tradeContractStates :: [Trade] -> S.Set ContractState
 tradeContractStates = S.fromList . map ((.state) . (.contract))

@@ -64,6 +64,7 @@ library
                     , CS2.Marketplaces.DMarket.Types
                     , CS2.Marketplaces.Skinport
                     , CS2.Marketplaces.Skinport.Types
+                    , CS2.Steam.Types
     -- other-modules:
     -- other-extensions:
     build-depends:    

@@ -1,5 +1,10 @@
-module CS2.Marketplaces.CSFloat.Types where
+module CS2.Marketplaces.CSFloat.Types (
+    module CS2.Marketplaces.CSFloat.Types,
+    SteamTradeOfferState (..),
+)
+where
 
+import CS2.Steam.Types (SteamTradeOfferState (..))
 import Data.Aeson
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -127,7 +132,7 @@ data Listing = Listing
     , created_at :: UTCTime
     , type_ :: Type
     , price :: Int
-    , state :: State
+    , state :: ListingState
     , seller :: Maybe Seller
     , reference :: Reference
     , item :: Item
@@ -149,15 +154,15 @@ instance FromJSON Listing where
                     other -> other
                 }
 
-data State
+data ListingState
     = Listed
-    | Other Text
+    | ListingStateOther Text
     deriving (Show, Generic, Eq, Ord)
 
-instance FromJSON State where
-    parseJSON = withText "State" $ \case
+instance FromJSON ListingState where
+    parseJSON = withText "ListingState" $ \case
         "listed" -> pure Listed
-        other -> pure $ Other other
+        other -> pure $ ListingStateOther other
 
 data Seller = Seller
     { away :: Bool
@@ -403,7 +408,7 @@ data Transaction = Transaction
     { id :: Text
     , created_at :: UTCTime
     , user_id :: Text
-    , type_ :: Text -- scrape types; enum?
+    , type_ :: TransactionType
     , details :: TransactionDetails
     , balance_offset :: Int
     , pending_offset :: Int
@@ -419,10 +424,26 @@ instance FromJSON Transaction where
                     other -> other
                 }
 
+data TransactionType
+    = ContractPurchased
+    | ContractSold
+    | Deposit
+    | TradeVerified
+    | TransactionTypeOther Text
+    deriving (Show, Generic, Eq, Ord)
+
+instance FromJSON TransactionType where
+    parseJSON = withText "TransactionType" $ \case
+        "contract_purchased" -> pure ContractPurchased
+        "contract_sold" -> pure ContractSold
+        "deposit" -> pure Deposit
+        "trade_verified" -> pure TradeVerified
+        other -> pure $ TransactionTypeOther other
+
 data TransactionDetails = TransactionDetails
     { contract_id :: Maybe Text
     , trade_id :: Maybe Text
-    , type_ :: Maybe Text -- scrape types; enum?
+    , type_ :: Maybe TransactionDetailsType
     }
     deriving (Show, Generic)
 
@@ -434,6 +455,16 @@ instance FromJSON TransactionDetails where
                     "type_" -> "type"
                     other -> other
                 }
+
+data TransactionDetailsType
+    = BuyerPing
+    | TransactionDetailsTypeOther Text
+    deriving (Eq, Show, Generic, Ord)
+
+instance FromJSON TransactionDetailsType where
+    parseJSON = withText "TransactionDetailsType" $ \case
+        "buyer_ping" -> pure BuyerPing
+        other -> pure $ TransactionDetailsTypeOther other
 
 data Watchlist = Watchlist
     { data_ :: [Listing]
@@ -465,12 +496,12 @@ data Trade = Trade
     , seller :: Seller
     , contract_id :: Text
     , accepted_at :: UTCTime
-    , state :: Text -- scrape for statse
-    , verification_mode :: Text -- scrape for verificationModes?
+    , state :: TradeState
+    , verification_mode :: TradeVerificationMode
     , steam_offer :: SteamOffer
     , verified_at :: UTCTime
     , inventory_check_status :: Maybe Int
-    , contract :: Contract
+    , contract :: TradeContract
     , trade_url :: Text
     , trade_token :: Text
     , wait_for_cancel_ping :: Bool
@@ -479,9 +510,31 @@ data Trade = Trade
     deriving (Show, Generic)
     deriving anyclass (FromJSON)
 
+data TradeState
+    = Verified
+    | TradeStateOther Text
+    deriving (Eq, Show, Ord, Generic)
+
+instance FromJSON TradeState where
+    parseJSON = withText "TradeState" $ \case
+        "verified" -> pure Verified
+        other -> pure $ TradeStateOther other
+
+data TradeVerificationMode
+    = Escrow
+    | Inventory
+    | TradeVerificationModeOther Text
+    deriving (Eq, Show, Generic, Ord)
+
+instance FromJSON TradeVerificationMode where
+    parseJSON = withText "TradeVerificationMode" $ \case
+        "escrow" -> pure Escrow
+        "inventory" -> pure Inventory
+        other -> pure $ TradeVerificationModeOther other
+
 data SteamOffer = SteamOffer
     { id :: Maybe Text
-    , state :: Maybe Int -- parse for options?
+    , state :: Maybe SteamTradeOfferState
     , is_from_seller :: Bool
     , can_cancel_at :: Maybe UTCTime
     , sent_at :: UTCTime
@@ -491,12 +544,12 @@ data SteamOffer = SteamOffer
     deriving (Show, Generic)
     deriving anyclass (FromJSON)
 
-data Contract = Contract
+data TradeContract = TradeContract
     { id :: Text
     , created_at :: UTCTime
     , type_ :: Type
     , price :: Int
-    , state :: Text -- scrape for options
+    , state :: ContractState
     , seller :: Seller
     , reference :: Reference
     , item :: Item
@@ -507,7 +560,7 @@ data Contract = Contract
     }
     deriving (Show, Generic)
 
-instance FromJSON Contract where
+instance FromJSON TradeContract where
     parseJSON =
         genericParseJSON
             defaultOptions
@@ -515,3 +568,13 @@ instance FromJSON Contract where
                     "type_" -> "type"
                     other -> other
                 }
+
+data ContractState
+    = Sold
+    | ContractStateOther Text
+    deriving (Eq, Show, Generic, Ord)
+
+instance FromJSON ContractState where
+    parseJSON = withText "ContractState" $ \case
+        "sold" -> pure Sold
+        other -> pure $ ContractStateOther other
