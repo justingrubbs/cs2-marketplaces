@@ -152,7 +152,7 @@ instance FromJSON Listing where
 data State
     = Listed
     | Other Text
-    deriving (Show, Generic, Eq)
+    deriving (Show, Generic, Eq, Ord)
 
 instance FromJSON State where
     parseJSON = withText "State" $ \case
@@ -420,9 +420,9 @@ instance FromJSON Transaction where
                 }
 
 data TransactionDetails = TransactionDetails
-    { contract_id :: Text
-    , trade_id :: Text
-    , type_ :: Text -- scrape types; enum?
+    { contract_id :: Maybe Text
+    , trade_id :: Maybe Text
+    , type_ :: Maybe Text -- scrape types; enum?
     }
     deriving (Show, Generic)
 

@@ -106,6 +106,7 @@ common repl-deps
         , text
         , servant-client
         , pretty-simple
+        , containers
 
 executable csfloat
     import:         warnings, extensions, repl-deps

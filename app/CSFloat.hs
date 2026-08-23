@@ -2,7 +2,10 @@ module Main where
 
 import CS2.Marketplaces.CSFloat
 import Configuration.Dotenv (Config (configPath), defaultConfig, loadFile)
+import Control.Concurrent
 import Data.IORef
+import qualified Data.Set as S
+import Data.Text (Text)
 import qualified Data.Text as T
 import Servant.Client (ClientError)
 import System.Environment (getEnv)
@@ -34,6 +37,27 @@ getCfg =
             cfg <- loadCfg
             writeIORef cfgRef (Just cfg)
             pure cfg
+
+defaultGetListingsQuery :: GetListingsQuery
+defaultGetListingsQuery =
+    GetListingsQuery
+        Nothing
+        Nothing
+        Nothing
+        Nothing
+        Nothing
+        Nothing
+        Nothing
+        Nothing
+        Nothing
+        Nothing
+        Nothing
+        Nothing
+        Nothing
+        Nothing
+        Nothing
+        Nothing
+        Nothing
 
 -- Should not be ClientError; servant should be not relevant to consumer
 tryGetListings :: IO (Either ClientError GetListingsResponse)
@@ -107,3 +131,104 @@ tryDeleteWatchlist = getCfg >>= \cfg -> deleteWatchlist cfg 997340244347060303
 
 tryGetTradeHistory :: IO (Either ClientError Trades)
 tryGetTradeHistory = getCfg >>= \cfg -> getTradeHistory cfg (Just "buyer") Nothing (Just 5)
+
+{- | Walk up to maxPages numbered pages of a count-paginated endpoint,
+collecting every raw item (no projection).
+-}
+fetchAllPaged ::
+    -- | maxPages
+    Int ->
+    -- | delayMicros
+    Int ->
+    -- | limit (page size)
+    Int ->
+    (Int -> IO (Either ClientError resp)) ->
+    (resp -> [a]) ->
+    (resp -> Int) ->
+    IO [a]
+fetchAllPaged maxPages delayMicros limit fetchPage getItems getCount = go 1 []
+  where
+    go page acc
+        | page > maxPages = pure acc
+        | otherwise = do
+            result <- fetchPage page
+            case result of
+                Left err -> do
+                    putStrLn $ "fetchAllPaged: stopping early at page " <> show page <> ": " <> show err
+                    pure acc
+                Right resp -> do
+                    let items = getItems resp
+                        acc' = acc <> items
+                        total = getCount resp
+                    if null items || page * limit >= total
+                        then pure acc'
+                        else do
+                            threadDelay delayMicros
+                            go (page + 1) acc'
+
+-- | Walk a cursor-paginated endpoint up to maxPages, collecting every raw item.
+fetchAllCursor ::
+    Int ->
+    Int ->
+    (Maybe Text -> IO (Either ClientError (resp, Maybe Text))) ->
+    (resp -> [a]) ->
+    IO [a]
+fetchAllCursor maxPages delayMicros fetchPage getItems = go 0 Nothing []
+  where
+    go pageCount mCursor acc
+        | pageCount >= maxPages = pure acc
+        | otherwise = do
+            result <- fetchPage mCursor
+            case result of
+                Left err -> do
+                    putStrLn $ "fetchAllCursor: stopping early after " <> show pageCount <> " pages: " <> show err
+                    pure acc
+                Right (resp, nextCursor) -> do
+                    let acc' = acc <> getItems resp
+                    case nextCursor of
+                        Just c -> do
+                            threadDelay delayMicros
+                            go (pageCount + 1) (Just c) acc'
+                        Nothing -> pure acc'
+
+fetchAllListings :: IO [Listing]
+fetchAllListings = do
+    cfg <- getCfg
+    fetchAllCursor
+        100
+        500000
+        (\mc -> fmap (\r -> (r, r.cursor)) <$> getListings cfg defaultGetListingsQuery{lqCursor = mc})
+        (.data_)
+
+fetchAllTransactions :: IO [Transaction]
+fetchAllTransactions = do
+    cfg <- getCfg
+    let limit = 50
+    fetchAllPaged 100 500000 limit (\page -> getTransactions cfg (Just page) (Just limit)) (.transactions) (.count)
+
+fetchAllTrades :: IO [Trade]
+fetchAllTrades = do
+    cfg <- getCfg
+    let limit = 50
+    fetchAllPaged 100 500000 limit (\page -> getTradeHistory cfg Nothing (Just page) (Just limit)) (.trades) (.count)
+
+listingStates :: [Listing] -> S.Set State
+listingStates = S.fromList . map (.state)
+
+transactionTypes :: [Transaction] -> S.Set Text
+transactionTypes = S.fromList . map (.type_)
+
+transactionDetailsTypes :: [Transaction] -> S.Set (Maybe Text)
+transactionDetailsTypes = S.fromList . map ((.type_) . (.details))
+
+tradeStates :: [Trade] -> S.Set Text
+tradeStates = S.fromList . map (.state)
+
+tradeVerificationModes :: [Trade] -> S.Set Text
+tradeVerificationModes = S.fromList . map (.verification_mode)
+
+tradeSteamOfferStates :: [Trade] -> S.Set (Maybe Int)
+tradeSteamOfferStates = S.fromList . map ((.state) . (.steam_offer))
+
+tradeContractStates :: [Trade] -> S.Set Text
+tradeContractStates = S.fromList . map ((.state) . (.contract))

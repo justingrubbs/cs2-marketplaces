@@ -45,27 +45,6 @@ data GetListingsQuery = GetListingsQuery
     , lqStickers :: Maybe Text
     }
 
-defaultGetListingsQuery :: GetListingsQuery
-defaultGetListingsQuery =
-    GetListingsQuery
-        Nothing
-        Nothing
-        Nothing
-        Nothing
-        Nothing
-        Nothing
-        Nothing
-        Nothing
-        Nothing
-        Nothing
-        Nothing
-        Nothing
-        Nothing
-        Nothing
-        Nothing
-        Nothing
-        Nothing
-
 getListings :: CSFloatConfig -> GetListingsQuery -> IO (Either ClientError GetListingsResponse)
 getListings cfg GetListingsQuery{..} =
     runClientM
