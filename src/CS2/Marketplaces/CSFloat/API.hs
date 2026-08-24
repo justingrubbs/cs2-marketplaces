@@ -4,6 +4,7 @@ import CS2.Marketplaces.CSFloat.Types
 import Data.Text
 import GHC.Generics (Generic)
 import Servant.API
+import CS2.Marketplaces.CSFloat.RateLimit (RateLimitHeaders)
 
 data CSFloatAPI mode = CSFloatAPI
     { listingsAPI ::
@@ -66,14 +67,14 @@ data CSFloatAPI mode = CSFloatAPI
                 :> QueryParam "limit" Int
                 :> Get '[JSON] Watchlist
     , deleteWatchlist ::
-        mode :-
-            Header' '[Required] "Authorization" Text
-            :> "api"
-            :> "v1"
-            :> "listings"
-            :> Capture "listingId" Int
-            :> "watchlist"
-            :> Delete '[JSON] ()
+        mode
+            :- Header' '[Required] "Authorization" Text
+                :> "api"
+                :> "v1"
+                :> "listings"
+                :> Capture "listingId" Int
+                :> "watchlist"
+                :> Delete '[JSON] ()
     , getTradeHistory ::
         mode
             :- Header' '[Required] "Authorization" Text
@@ -114,7 +115,7 @@ data ListingsAPI mode = ListingsAPI
         mode
             :- Header' '[Required] "Authorization" Text
                 :> Capture "listingId" Int
-                :> Get '[JSON] Listing
+                :> Get '[JSON] (RateLimitHeaders Listing)
     , postListing ::
         mode
             :- Header' '[Required] "Authorization" Text

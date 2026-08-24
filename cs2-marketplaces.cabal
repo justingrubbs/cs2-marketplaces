@@ -59,11 +59,13 @@ library
                     , CS2.Marketplaces
                     , CS2.Marketplaces.CSFloat
                     , CS2.Marketplaces.CSFloat.API
+                    , CS2.Marketplaces.CSFloat.RateLimit
                     , CS2.Marketplaces.CSFloat.Types
                     , CS2.Marketplaces.DMarket
                     , CS2.Marketplaces.DMarket.Types
                     , CS2.Marketplaces.Skinport
                     , CS2.Marketplaces.Skinport.Types
+                    , CS2.RateLimit
                     , CS2.Steam.Types
     -- other-modules:
     -- other-extensions:
@@ -76,9 +78,11 @@ library
                     , cryptonite
                     , http-client
                     , http-client-tls
+                    , random
                     , servant
                     , servant-client
                     , servant-client-core
+                    , stm
                     , text
                     , time
     hs-source-dirs:   src
@@ -108,6 +112,11 @@ common repl-deps
         , servant-client
         , pretty-simple
         , containers
+
+        , http-client
+        , http-client-tls
+        , bytestring
+        , aeson
 
 executable csfloat
     import:         warnings, extensions, repl-deps

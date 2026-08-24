@@ -1,3 +1,5 @@
+{-# LANGUAGE TypeApplications #-}
+
 module CS2.Marketplaces.CSFloat (
     module CS2.Marketplaces.CSFloat.Types,
     module CS2.Marketplaces.CSFloat,
@@ -8,6 +10,7 @@ import CS2.Marketplaces.CSFloat.Types
 import Data.Text (Text)
 import Network.HTTP.Client
 import Network.HTTP.Client.TLS
+import Servant.API
 import Servant.Client
 import Servant.Client.Generic
 
@@ -72,10 +75,25 @@ getListings cfg GetListingsQuery{..} =
 
 -- int vs text??
 getListing :: CSFloatConfig -> Int -> IO (Either ClientError Listing)
-getListing cfg listingId =
-    runClientM
-        (csfloatClient.listingsAPI.getListing (apiKey cfg) listingId)
-        (clientEnv cfg)
+getListing cfg listingId = do
+    eResponse <-
+        runClientM
+            (csfloatClient.listingsAPI.getListing (apiKey cfg) listingId)
+            (clientEnv cfg)
+    case eResponse of
+        Left err -> pure $ Left err
+        Right response -> do
+            let listing = getResponse response
+            case lookupResponseHeader @"x-ratelimit-limit" @Text response of
+                Header limit -> print limit
+                _ -> pure ()
+            case lookupResponseHeader @"x-ratelimit-remaining" @Text response of
+                Header limit -> print limit
+                _ -> pure ()
+            case lookupResponseHeader @"x-ratelimit-reset" @Text response of
+                Header limit -> print limit
+                _ -> pure ()
+            pure $ Right listing
 
 postListing :: CSFloatConfig -> PostListingRequest -> IO (Either ClientError Listing)
 postListing cfg plr =

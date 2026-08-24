@@ -11,6 +11,87 @@ import Servant.Client (ClientError)
 import System.Environment (getEnv)
 import System.IO.Unsafe (unsafePerformIO)
 
+import Data.Aeson (ToJSON, encode)
+import Data.ByteString (ByteString)
+import Data.Text.Encoding (encodeUtf8)
+import Network.HTTP.Client
+import Network.HTTP.Client.TLS (tlsManagerSettings)
+
+inspectRequest :: (ToJSON a) => CSFloatConfig -> ByteString -> String -> Maybe a -> IO ()
+inspectRequest cfg httpMethod path mBody = do
+    manager <- newManager tlsManagerSettings
+    req0 <- parseRequest ("https://csfloat.com" <> path)
+    let req =
+            req0
+                { method = httpMethod
+                , requestHeaders =
+                    ("Authorization", encodeUtf8 (apiKey cfg))
+                        : maybe [] (const [("Content-Type", "application/json")]) mBody
+                , requestBody = maybe (requestBody req0) (RequestBodyLBS . encode) mBody
+                }
+    resp <- httpLbs req manager
+    mapM_ print (responseHeaders resp)
+
+inspectGetListings :: CSFloatConfig -> IO ()
+inspectGetListings cfg = inspectRequest cfg "GET" "/api/v1/listings" (Nothing :: Maybe ())
+
+inspectGetListing :: CSFloatConfig -> IO ()
+inspectGetListing cfg = inspectRequest cfg "GET" "/api/v1/listings/1012218546064854906" (Nothing :: Maybe ())
+
+inspectPostListing :: CSFloatConfig -> IO ()
+inspectPostListing cfg =
+    inspectRequest
+        cfg
+        "POST"
+        "/api/v1/listings"
+        ( Just
+            PostBuyNowListing
+                { asset_id = "30744610817"
+                , price = 100000
+                , max_offer_discount = Nothing
+                , description = Just "Header inspection — will be cancelled"
+                , private = True
+                }
+        )
+
+inspectDeleteListing :: CSFloatConfig -> Text -> IO ()
+inspectDeleteListing cfg listingId =
+    inspectRequest cfg "DELETE" ("/api/v1/listings/" <> T.unpack listingId) (Nothing :: Maybe ())
+
+inspectUpdateListingPrice :: CSFloatConfig -> IO ()
+inspectUpdateListingPrice cfg =
+    inspectRequest
+        cfg
+        "PATCH"
+        ("/api/v1/listings/1012218546064854906")
+        (Just UpdateListingPriceRequest{price = 100101})
+
+inspectGetMe :: CSFloatConfig -> IO ()
+inspectGetMe cfg = inspectRequest cfg "GET" "/api/v1/me" (Nothing :: Maybe ())
+
+inspectGetInventory :: CSFloatConfig -> IO ()
+inspectGetInventory cfg = inspectRequest cfg "GET" "/api/v1/me/inventory" (Nothing :: Maybe ())
+
+inspectGetStall :: CSFloatConfig -> IO ()
+inspectGetStall cfg = inspectRequest cfg "GET" "/api/v1/users/76561198203252187/stall" (Nothing :: Maybe ())
+
+inspectGetSales :: CSFloatConfig -> IO ()
+inspectGetSales cfg =
+    inspectRequest cfg "GET" "/api/v1/history/AK-47%20%7C%20Redline%20(Minimal%20Wear)/sales" (Nothing :: Maybe ())
+
+inspectGetTransactions :: CSFloatConfig -> IO ()
+inspectGetTransactions cfg = inspectRequest cfg "GET" "/api/v1/me/transactions" (Nothing :: Maybe ())
+
+inspectGetWatchlist :: CSFloatConfig -> IO ()
+inspectGetWatchlist cfg = inspectRequest cfg "GET" "/api/v1/me/watchlist" (Nothing :: Maybe ())
+
+inspectDeleteWatchlist :: CSFloatConfig -> IO ()
+inspectDeleteWatchlist cfg =
+    inspectRequest cfg "DELETE" ("/api/v1/listings/1012218546064854906/watchlist") (Nothing :: Maybe ())
+
+inspectGetTradeHistory :: CSFloatConfig -> IO ()
+inspectGetTradeHistory cfg = inspectRequest cfg "GET" "/api/v1/me/trades" (Nothing :: Maybe ())
+
 {- | REPL for interacting with CS2.Marketplaces.CSFloat as a typical library consumer.
   For our use case, this is useful for sifting through API responses and in ensuring the library
   module is self-sufficient.
@@ -59,12 +140,17 @@ defaultGetListingsQuery =
         Nothing
         Nothing
 
+-- Per-endpoint functions:
+-------------------------------------------------------------------------------
 -- Should not be ClientError; servant should be not relevant to consumer
 tryGetListings :: IO (Either ClientError GetListingsResponse)
 tryGetListings = getCfg >>= \cfg -> getListings cfg defaultGetListingsQuery
 
 tryGetListing :: IO (Either ClientError Listing)
-tryGetListing = getCfg >>= \cfg -> getListing cfg 896429455789131961
+tryGetListing = do
+    cfg <- loadCfg
+    listing <- getListing cfg 1012218546064854906
+    pure listing
 
 tryPostBuyNowListing :: IO (Either ClientError Listing)
 tryPostBuyNowListing = do
@@ -97,7 +183,7 @@ tryPostAuctionListing = do
 tryUpdateListingPrice :: IO (Either ClientError Listing)
 tryUpdateListingPrice =
     getCfg >>= \cfg ->
-        updateListingPrice cfg "997340244347060303" UpdateListingPriceRequest{price = 100101}
+        updateListingPrice cfg "1012218546064854906" UpdateListingPriceRequest{price = 100101}
 
 tryDeleteListing :: IO (Either ClientError ())
 tryDeleteListing = do
@@ -127,10 +213,13 @@ tryGetWatchlist :: IO (Either ClientError Watchlist)
 tryGetWatchlist = getCfg >>= \cfg -> getWatchlist cfg (Just 50)
 
 tryDeleteWatchlist :: IO (Either ClientError ())
-tryDeleteWatchlist = getCfg >>= \cfg -> deleteWatchlist cfg 997340244347060303
+tryDeleteWatchlist = getCfg >>= \cfg -> deleteWatchlist cfg 1011820418002191672
 
 tryGetTradeHistory :: IO (Either ClientError Trades)
 tryGetTradeHistory = getCfg >>= \cfg -> getTradeHistory cfg (Just "buyer") Nothing (Just 5)
+
+-- Scraping:
+-------------------------------------------------------------------------------
 
 {- | Walk up to maxPages numbered pages of a count-paginated endpoint,
 collecting every raw item (no projection).
