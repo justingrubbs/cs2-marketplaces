@@ -1,14 +1,14 @@
-{-# LANGUAGE TypeApplications #-}
-
 module CS2.Marketplaces.CSFloat (
     module CS2.Marketplaces.CSFloat.Types,
     module CS2.Marketplaces.CSFloat,
 ) where
 
 import CS2.Marketplaces.CSFloat.API
+import CS2.Marketplaces.CSFloat.RateLimit
 import CS2.Marketplaces.CSFloat.Types
+import Control.Monad (void)
 import Data.Text (Text)
-import Network.HTTP.Client
+import Network.HTTP.Client (newManager)
 import Network.HTTP.Client.TLS
 import Servant.API
 import Servant.Client
@@ -17,16 +17,21 @@ import Servant.Client.Generic
 data CSFloatConfig = CSFloatConfig
     { apiKey :: Text
     , clientEnv :: ClientEnv
+    , limiter :: Limiter CSFloatBucket
+    , policy :: CSFloatLimiterPolicy
     }
 
 csfloatClient :: CSFloatAPI (AsClientT ClientM)
 csfloatClient = genericClient
 
-mkCSFloatConfig :: Text -> IO CSFloatConfig
-mkCSFloatConfig key = do
+mkCSFloatConfigWith :: CSFloatLimiterPolicy -> Text -> IO CSFloatConfig
+mkCSFloatConfigWith pol key = do
     mgr <- newManager tlsManagerSettings
-    let env = mkClientEnv mgr (BaseUrl Https "csfloat.com" 443 "")
-    pure $ CSFloatConfig key env
+    limiter <- newCSFloatLimiter
+    pure $ CSFloatConfig key (mkClientEnv mgr (BaseUrl Https "csfloat.com" 443 "")) limiter pol
+
+mkCSFloatConfig :: Text -> IO CSFloatConfig
+mkCSFloatConfig = mkCSFloatConfigWith defaultCSFloatLimiterPolicy
 
 data GetListingsQuery = GetListingsQuery
     { lqCursor :: Maybe Text
@@ -48,11 +53,49 @@ data GetListingsQuery = GetListingsQuery
     , lqStickers :: Maybe Text
     }
 
+callWithHeaders :: CSFloatConfig -> [Toll CSFloatBucket] -> CSFloatBucket -> ClientM (WithHeaders a) -> IO (Either ClientError a)
+callWithHeaders cfg tolls bucket action = withRateLimit cfg.limiter tolls $ do
+    eResponse <- runClientM action (clientEnv cfg)
+    withResponse eResponse $ \response -> do
+        if cacheHit response
+            then refundTolls cfg.limiter tolls
+            else reconcileFromHeaders cfg.limiter cfg.policy bucket response
+        pure . Right $ getResponse response
+  where
+    withResponse :: (Applicative f) => Either a t -> (t -> f (Either a b)) -> f (Either a b)
+    withResponse e k = either (pure . Left) k e
+
+-- Default `GetListingsQuery`; override fields as needed.
+defaultGetListingsQuery :: GetListingsQuery
+defaultGetListingsQuery =
+    GetListingsQuery
+        { lqCursor = Nothing
+        , lqLimit = Nothing
+        , lqSortBy = Nothing
+        , lqCategory = Nothing
+        , lqDefIndex = Nothing
+        , lqMinFloat = Nothing
+        , lqMaxFloat = Nothing
+        , lqRarity = Nothing
+        , lqPaintSeed = Nothing
+        , lqPaintIndex = Nothing
+        , lqUserId = Nothing
+        , lqCollection = Nothing
+        , lqMinPrice = Nothing
+        , lqMaxPrice = Nothing
+        , lqMarketHashName = Nothing
+        , lqType = Nothing
+        , lqStickers = Nothing
+        }
+
+-- ListingsAPI:
+-------------------------------------------------------------------------------
 getListings :: CSFloatConfig -> GetListingsQuery -> IO (Either ClientError GetListingsResponse)
 getListings cfg GetListingsQuery{..} =
-    runClientM
-        ( csfloatClient.listingsAPI.getListings
+    callWithHeaders cfg [toll GlobalBucket 1, toll GetListingsBucket 1] GetListingsBucket $
+        ( csfloatClient.listingsApi
             (apiKey cfg)
+        ).getListings
             lqCursor
             lqLimit
             lqSortBy
@@ -70,122 +113,74 @@ getListings cfg GetListingsQuery{..} =
             lqMarketHashName
             lqType
             lqStickers
-        )
-        (clientEnv cfg)
 
--- int vs text??
-getListing :: CSFloatConfig -> Int -> IO (Either ClientError Listing)
-getListing cfg listingId = do
-    eResponse <-
-        runClientM
-            (csfloatClient.listingsAPI.getListing (apiKey cfg) listingId)
-            (clientEnv cfg)
-    case eResponse of
-        Left err -> pure $ Left err
-        Right response -> do
-            let listing = getResponse response
-            case lookupResponseHeader @"x-ratelimit-limit" @Text response of
-                Header limit -> print limit
-                _ -> pure ()
-            case lookupResponseHeader @"x-ratelimit-remaining" @Text response of
-                Header limit -> print limit
-                _ -> pure ()
-            case lookupResponseHeader @"x-ratelimit-reset" @Text response of
-                Header limit -> print limit
-                _ -> pure ()
-            pure $ Right listing
+getListing :: CSFloatConfig -> Text -> IO (Either ClientError Listing)
+getListing cfg listingId =
+    callWithHeaders cfg [toll GlobalBucket 1] GlobalBucket $
+        (csfloatClient.listingsApi (apiKey cfg)).getListing listingId
 
 postListing :: CSFloatConfig -> PostListingRequest -> IO (Either ClientError Listing)
 postListing cfg plr =
-    runClientM
-        (csfloatClient.listingsAPI.postListing (apiKey cfg) plr)
-        (clientEnv cfg)
+    callWithHeaders cfg [toll GlobalBucket 1] GlobalBucket $
+        (csfloatClient.listingsApi (apiKey cfg)).postListing plr
 
 deleteListing :: CSFloatConfig -> Text -> IO (Either ClientError ())
 deleteListing cfg listingId =
-    runClientM
-        ( csfloatClient.listingsAPI.deleteListing
-            (apiKey cfg)
-            listingId
-        )
-        (clientEnv cfg)
+    fmap void . callWithHeaders cfg [toll GlobalBucket 1] GlobalBucket $
+        (csfloatClient.listingsApi (apiKey cfg)).deleteListing listingId
 
 updateListingPrice :: CSFloatConfig -> Text -> UpdateListingPriceRequest -> IO (Either ClientError Listing)
 updateListingPrice cfg listingId req =
-    runClientM
-        ( csfloatClient.listingsAPI.updateListingPrice
-            (apiKey cfg)
-            listingId
-            req
-        )
-        (clientEnv cfg)
+    callWithHeaders cfg [toll GlobalBucket 1] GlobalBucket $
+        (csfloatClient.listingsApi (apiKey cfg)).updateListingPrice listingId req
 
+deleteWatchlist :: CSFloatConfig -> Text -> IO (Either ClientError ())
+deleteWatchlist cfg listingId =
+    fmap void . callWithHeaders cfg [toll GlobalBucket 1] GlobalBucket $
+        (csfloatClient.listingsApi (apiKey cfg)).deleteWatchlist listingId
+
+-- MeAPI:
+-------------------------------------------------------------------------------
 getMe :: CSFloatConfig -> IO (Either ClientError Me)
 getMe cfg =
-    runClientM
-        (csfloatClient.getMe (apiKey cfg))
-        (clientEnv cfg)
+    callWithHeaders cfg [toll GlobalBucket 1] GlobalBucket $
+        (csfloatClient.meApi (apiKey cfg)).getMe
 
 getInventory :: CSFloatConfig -> IO (Either ClientError [Item])
 getInventory cfg =
-    runClientM
-        (csfloatClient.getInventory (apiKey cfg))
-        (clientEnv cfg)
-
-getStall :: CSFloatConfig -> Text -> Maybe Text -> Maybe Int -> IO (Either ClientError Stall)
-getStall cfg steamId mcursor mlimit =
-    runClientM
-        ( csfloatClient.getStall
-            steamId
-            mcursor
-            mlimit
-        )
-        (clientEnv cfg)
-
-getSales :: CSFloatConfig -> Text -> Maybe Int -> IO (Either ClientError [Listing])
-getSales cfg marketHashName mPaintIndex =
-    runClientM
-        ( csfloatClient.getSales
-            marketHashName
-            mPaintIndex
-        )
-        (clientEnv cfg)
+    callWithHeaders cfg [toll GlobalBucket 1, toll GetInventoryBucket 1] GetInventoryBucket $
+        (csfloatClient.meApi (apiKey cfg)).getInventory
 
 getTransactions :: CSFloatConfig -> Maybe Int -> Maybe Int -> IO (Either ClientError Transactions)
 getTransactions cfg mPage mLimit =
-    runClientM
-        ( csfloatClient.getTransactions
-            (apiKey cfg)
-            mPage
-            mLimit
-        )
-        (clientEnv cfg)
+    callWithHeaders cfg [toll GlobalBucket 1] GlobalBucket $
+        (csfloatClient.meApi (apiKey cfg)).getTransactions mPage mLimit
 
 getWatchlist :: CSFloatConfig -> Maybe Int -> IO (Either ClientError Watchlist)
 getWatchlist cfg mLimit =
-    runClientM
-        ( csfloatClient.getWatchlist
-            (apiKey cfg)
-            mLimit
-        )
-        (clientEnv cfg)
-
-deleteWatchlist :: CSFloatConfig -> Int -> IO (Either ClientError ())
-deleteWatchlist cfg listingId =
-    runClientM
-        ( csfloatClient.deleteWatchlist
-            (apiKey cfg)
-            listingId
-        )
-        (clientEnv cfg)
+    callWithHeaders cfg [toll GlobalBucket 1] GlobalBucket $
+        (csfloatClient.meApi (apiKey cfg)).getWatchlist mLimit
 
 getTradeHistory :: CSFloatConfig -> Maybe Text -> Maybe Int -> Maybe Int -> IO (Either ClientError Trades)
 getTradeHistory cfg mRole mPage mLimit =
-    runClientM
-        ( csfloatClient.getTradeHistory
-            (apiKey cfg)
-            mRole
-            mPage
-            mLimit
-        )
-        (clientEnv cfg)
+    callWithHeaders cfg [toll GlobalBucket 1, toll GetTradeHistoryBucket 1] GetTradeHistoryBucket $
+        (csfloatClient.meApi (apiKey cfg)).getTradeHistory mRole mPage mLimit
+
+-- UsersAPI:
+-------------------------------------------------------------------------------
+getStall :: CSFloatConfig -> Text -> Maybe Text -> Maybe Int -> IO (Either ClientError Stall)
+getStall cfg steamId mcursor mlimit =
+    callWithHeaders cfg [toll GlobalBucket 1] GlobalBucket $
+        csfloatClient.usersApi.getStall
+            steamId
+            mcursor
+            mlimit
+
+-- HistoryAPI:
+-------------------------------------------------------------------------------
+getSales :: CSFloatConfig -> Text -> Maybe Int -> IO (Either ClientError [Listing])
+getSales cfg marketHashName mPaintIndex =
+    callWithHeaders cfg [toll GlobalBucket 1, toll GetSalesBucket 1] GetSalesBucket $
+        csfloatClient.historyApi.getSales
+            marketHashName
+            mPaintIndex

@@ -1,99 +1,45 @@
 module CS2.Marketplaces.CSFloat.API where
 
+import CS2.Marketplaces.CSFloat.RateLimit (WithHeaders)
 import CS2.Marketplaces.CSFloat.Types
 import Data.Text
 import GHC.Generics (Generic)
 import Servant.API
-import CS2.Marketplaces.CSFloat.RateLimit (RateLimitHeaders)
 
 data CSFloatAPI mode = CSFloatAPI
-    { listingsAPI ::
+    { listingsApi ::
         mode
-            :- "api"
+            :- Header' '[Required] "Authorization" Text
+                :> "api"
                 :> "v1"
                 :> "listings"
                 :> NamedRoutes ListingsAPI
-    , getMe ::
+    , meApi ::
         mode
             :- Header' '[Required] "Authorization" Text
                 :> "api"
                 :> "v1"
                 :> "me"
-                :> Get '[JSON] Me
-    , getInventory ::
-        mode
-            :- Header' '[Required] "Authorization" Text
-                :> "api"
-                :> "v1"
-                :> "me"
-                :> "inventory"
-                :> Get '[JSON] [Item]
-    , getStall ::
+                :> NamedRoutes MeAPI
+    , usersApi ::
         mode
             :- "api"
                 :> "v1"
                 :> "users"
-                :> Capture "UserID" Text
-                :> "stall"
-                :> QueryParam "cursor" Text
-                :> QueryParam "limit" Int
-                :> Get '[JSON] Stall
-    , getSales ::
+                :> NamedRoutes UsersAPI
+    , historyApi ::
         mode
             :- "api"
                 :> "v1"
                 :> "history"
-                :> Capture "market_hash_name" Text
-                :> "sales"
-                :> QueryParam "paint_index" Int
-                :> Get '[JSON] [Listing]
-    , getTransactions ::
-        mode
-            :- Header' '[Required] "Authorization" Text
-                :> "api"
-                :> "v1"
-                :> "me"
-                :> "transactions"
-                :> QueryParam "page" Int
-                :> QueryParam "limit" Int
-                :> Get '[JSON] Transactions
-    , getWatchlist ::
-        mode
-            :- Header' '[Required] "Authorization" Text
-                :> "api"
-                :> "v1"
-                :> "me"
-                :> "watchlist"
-                :> QueryParam "limit" Int
-                :> Get '[JSON] Watchlist
-    , deleteWatchlist ::
-        mode
-            :- Header' '[Required] "Authorization" Text
-                :> "api"
-                :> "v1"
-                :> "listings"
-                :> Capture "listingId" Int
-                :> "watchlist"
-                :> Delete '[JSON] ()
-    , getTradeHistory ::
-        mode
-            :- Header' '[Required] "Authorization" Text
-                :> "api"
-                :> "v1"
-                :> "me"
-                :> "trades"
-                :> QueryParam "role" Text
-                :> QueryParam "page" Int
-                :> QueryParam "limit" Int
-                :> Get '[JSON] Trades
+                :> NamedRoutes HistoryAPI
     }
     deriving (Generic)
 
 data ListingsAPI mode = ListingsAPI
     { getListings ::
         mode
-            :- Header' '[Required] "Authorization" Text
-                :> QueryParam "cursor" Text
+            :- QueryParam "cursor" Text
                 :> QueryParam "limit" Int
                 :> QueryParam "sort_by" SortBy
                 :> QueryParam "category" Category
@@ -110,27 +56,76 @@ data ListingsAPI mode = ListingsAPI
                 :> QueryParam "market_hash_name" Text
                 :> QueryParam "type" Type
                 :> QueryParam "stickers" Text
-                :> Get '[JSON] GetListingsResponse
+                :> Get '[JSON] (WithHeaders GetListingsResponse)
     , getListing ::
         mode
-            :- Header' '[Required] "Authorization" Text
-                :> Capture "listingId" Int
-                :> Get '[JSON] (RateLimitHeaders Listing)
+            :- Capture "listingId" Text
+                :> Get '[JSON] (WithHeaders Listing)
     , postListing ::
         mode
-            :- Header' '[Required] "Authorization" Text
-                :> ReqBody '[JSON] PostListingRequest
-                :> Post '[JSON] Listing
+            :- ReqBody '[JSON] PostListingRequest
+                :> Post '[JSON] (WithHeaders Listing)
     , deleteListing ::
         mode
-            :- Header' '[Required] "Authorization" Text
-                :> Capture "listingId" Text
-                :> Delete '[JSON] () -- reevaluate return type
+            :- Capture "listingId" Text
+                :> Delete '[JSON] (WithHeaders NoContent)
     , updateListingPrice ::
         mode
-            :- Header' '[Required] "Authorization" Text
-                :> Capture "listingId" Text
+            :- Capture "listingId" Text
                 :> ReqBody '[JSON] UpdateListingPriceRequest
-                :> Patch '[JSON] Listing
+                :> Patch '[JSON] (WithHeaders Listing)
+    , deleteWatchlist ::
+        mode
+            :- Capture "listingId" Text
+                :> "watchlist"
+                :> Delete '[JSON] (WithHeaders NoContent)
+    }
+    deriving (Generic)
+
+data MeAPI mode = MeAPI
+    { getMe :: mode :- Get '[JSON] (WithHeaders Me)
+    , getInventory ::
+        mode
+            :- "inventory"
+                :> Get '[JSON] (WithHeaders [Item])
+    , getTransactions ::
+        mode
+            :- "transactions"
+                :> QueryParam "page" Int
+                :> QueryParam "limit" Int
+                :> Get '[JSON] (WithHeaders Transactions)
+    , getWatchlist ::
+        mode
+            :- "watchlist"
+                :> QueryParam "limit" Int
+                :> Get '[JSON] (WithHeaders Watchlist)
+    , getTradeHistory ::
+        mode
+            :- "trades"
+                :> QueryParam "role" Text
+                :> QueryParam "page" Int
+                :> QueryParam "limit" Int
+                :> Get '[JSON] (WithHeaders Trades)
+    }
+    deriving (Generic)
+
+data UsersAPI mode = UsersAPI
+    { getStall ::
+        mode
+            :- Capture "UserID" Text
+                :> "stall"
+                :> QueryParam "cursor" Text
+                :> QueryParam "limit" Int
+                :> Get '[JSON] (WithHeaders Stall)
+    }
+    deriving (Generic)
+
+data HistoryAPI mode = HistoryAPI
+    { getSales ::
+        mode
+            :- Capture "market_hash_name" Text
+                :> "sales"
+                :> QueryParam "paint_index" Int
+                :> Get '[JSON] (WithHeaders [Listing])
     }
     deriving (Generic)

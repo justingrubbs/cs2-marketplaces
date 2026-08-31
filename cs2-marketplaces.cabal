@@ -49,6 +49,7 @@ common extensions
         , OverloadedStrings
         , RecordWildCards
         , ScopedTypeVariables
+        , TypeApplications
         , TypeOperators
 
 library

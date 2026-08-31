@@ -25,6 +25,8 @@ module CS2.RateLimit (
     withRateLimit,
     -- Reconciliation
     reconcile,
+    refundTolls,
+    peekLive,
 ) where
 
 import Control.Concurrent (threadDelay)
@@ -73,6 +75,7 @@ data Bucket = Bucket
     , tokens :: !Double
     , seenAt :: !Time
     }
+    deriving stock (Show)
 
 newBucket :: Capacity -> Rate -> Time -> Bucket
 newBucket capacity rate seenAt =
@@ -191,17 +194,37 @@ acquire lim tolls = go
 withRateLimit :: (Ord k) => Limiter k -> [Toll k] -> IO a -> IO a
 withRateLimit lim tolls act = acquire lim tolls *> act
 
-reconcile :: (Ord k) => Limiter k -> k -> Capacity -> Rate -> IO ()
-reconcile (Limiter ref) key c r = do
+reconcile :: (Ord k) => Limiter k -> k -> Maybe Rate -> Maybe Capacity -> IO ()
+reconcile (Limiter ref) key mRate mCap = do
     now <- getMonotonicTime
     atomically . modifyTVar' ref $
         M.adjust
             ( \b ->
-                let b' = refillBucket now b
-                 in b'
-                        { capacity = c
-                        , rate = r
-                        , tokens = min (getCapacity c) (tokens b')
-                        }
+                let b1 = refillBucket now b
+                    b2 = maybe b1 (\r -> b1{rate = r}) mRate
+                 in maybe b2 (\c -> b2{capacity = c, tokens = min (getCapacity c) b2.tokens}) mCap
             )
             key
+
+refundTolls :: (Ord k) => Limiter k -> [Toll k] -> IO ()
+refundTolls (Limiter ref) tolls = do
+    now <- getMonotonicTime
+    atomically . modifyTVar' ref $ \m ->
+        foldl'
+            ( \acc t ->
+                M.adjust
+                    ( \b ->
+                        let b' = refillBucket now b
+                         in b'{tokens = min (getCapacity b'.capacity) (b'.tokens + t.cost)}
+                    )
+                    t.key
+                    acc
+            )
+            m
+            tolls
+
+peekLive :: Limiter k -> IO [(k, Bucket)]
+peekLive (Limiter ref) = do
+    now <- getMonotonicTime
+    m <- readTVarIO ref
+    pure [(k, refillBucket now b) | (k, b) <- M.toList m]
