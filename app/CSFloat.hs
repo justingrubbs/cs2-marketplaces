@@ -15,7 +15,7 @@ import CS2.Marketplaces.CSFloat
 import CS2.Marketplaces.CSFloat.RateLimit (peekLive)
 import Configuration.Dotenv (Config (configPath), defaultConfig, loadFile)
 import Control.Concurrent
-import Control.Monad (replicateM_, void)
+import Control.Monad (void)
 import Data.Aeson (ToJSON, encode)
 import Data.ByteString (ByteString)
 import Data.IORef
@@ -25,7 +25,6 @@ import qualified Data.Text as T
 import Data.Text.Encoding (encodeUtf8)
 import Network.HTTP.Client
 import Network.HTTP.Client.TLS (tlsManagerSettings)
-import Servant.Client (ClientError)
 import System.Environment (getEnv)
 import System.IO.Unsafe (unsafePerformIO)
 
@@ -63,8 +62,16 @@ getCfg =
 peekLimiter :: IO ()
 peekLimiter = getCfg >>= peekLive . limiter >>= mapM_ print
 
+-- | Repeat @action@ up to @n@ times, printing each result; stop early on 'Left'.
 run :: (Show a) => Int -> IO (Either a b) -> IO ()
-run n action = replicateM_ n (action >>= print . void)
+run n action = go n
+  where
+    go k
+        | k <= 0 = pure ()
+        | otherwise = do
+            result <- action
+            print (void result)
+            either (const (pure ())) (const (go (k - 1))) result
 
 -- ---------------------------------------------------------------------------
 -- 2. Test data
@@ -152,21 +159,20 @@ testDeleteBulkListingsRequest = DeleteBulkListingsRequest testListings
 -- ---------------------------------------------------------------------------
 -- 3. Per-endpoint calls
 -- ---------------------------------------------------------------------------
--- Should not be ClientError; servant should be not relevant to consumer.
 
-tryGetListings :: IO (Either ClientError GetListingsResponse)
+tryGetListings :: IO (Either CSFloatError GetListingsResponse)
 tryGetListings = getCfg >>= \cfg -> getListings cfg defaultGetListingsQuery
 
-tryGetListing :: IO (Either ClientError Listing)
+tryGetListing :: IO (Either CSFloatError Listing)
 tryGetListing = getCfg >>= \cfg -> getListing cfg testListing
 
-tryPostBuyNowListing :: IO (Either ClientError Listing)
+tryPostBuyNowListing :: IO (Either CSFloatError Listing)
 tryPostBuyNowListing = do
     cfg <- getCfg
     let plr = testPostBuyNowListing
     postListing cfg plr
 
-tryPostAuctionListing :: IO (Either ClientError Listing)
+tryPostAuctionListing :: IO (Either CSFloatError Listing)
 tryPostAuctionListing = do
     cfg <- getCfg
     let plr =
@@ -181,12 +187,12 @@ tryPostAuctionListing = do
                 }
     postListing cfg plr
 
-tryDeleteListing :: IO (Either ClientError ())
+tryDeleteListing :: IO (Either CSFloatError ())
 tryDeleteListing = do
     cfg <- getCfg
     deleteListing cfg testListing
 
-tryUpdateListing :: IO (Either ClientError Listing)
+tryUpdateListing :: IO (Either CSFloatError Listing)
 tryUpdateListing =
     getCfg >>= \cfg ->
         updateListing
@@ -194,57 +200,57 @@ tryUpdateListing =
             testListing
             testUpdateListingRequest
 
-tryPostBulkListings :: IO (Either ClientError Listings)
+tryPostBulkListings :: IO (Either CSFloatError Listings)
 tryPostBulkListings = do
     cfg <- getCfg
     postBulkListings cfg testPostBulkListingsRequest
 
-tryUpdateBulkListings :: IO (Either ClientError Listings)
+tryUpdateBulkListings :: IO (Either CSFloatError Listings)
 tryUpdateBulkListings = do
     cfg <- getCfg
     updateBulkListings cfg testUpdateBulkListingsRequest
 
-tryDeleteBulkListings :: IO (Either ClientError ())
+tryDeleteBulkListings :: IO (Either CSFloatError ())
 tryDeleteBulkListings = do
     cfg <- getCfg
     deleteBulkListings cfg testDeleteBulkListingsRequest
 
-tryPostWatchlist :: IO (Either ClientError ())
+tryPostWatchlist :: IO (Either CSFloatError ())
 tryPostWatchlist = getCfg >>= \cfg -> postWatchlist cfg testListing
 
-tryDeleteWatchlist :: IO (Either ClientError ())
+tryDeleteWatchlist :: IO (Either CSFloatError ())
 tryDeleteWatchlist = getCfg >>= \cfg -> deleteWatchlist cfg testListing
 
-tryGetSimilarListings :: IO (Either ClientError [Listing])
+tryGetSimilarListings :: IO (Either CSFloatError [Listing])
 tryGetSimilarListings = do
     cfg <- getCfg
     getSimilarListings cfg testListing
 
-tryGetMe :: IO (Either ClientError Me)
+tryGetMe :: IO (Either CSFloatError Me)
 tryGetMe = getCfg >>= \cfg -> getMe cfg
 
-tryGetInventory :: IO (Either ClientError [Item])
+tryGetInventory :: IO (Either CSFloatError [Item])
 tryGetInventory = getCfg >>= \cfg -> getInventory cfg
 
-tryGetTransactions :: IO (Either ClientError Transactions)
+tryGetTransactions :: IO (Either CSFloatError Transactions)
 tryGetTransactions = getCfg >>= \cfg -> getTransactions cfg (Just 1) (Just 2)
 
-tryGetWatchlist :: IO (Either ClientError Listings)
+tryGetWatchlist :: IO (Either CSFloatError Listings)
 tryGetWatchlist = getCfg >>= \cfg -> getWatchlist cfg (Just 50)
 
-tryGetTradeHistory :: IO (Either ClientError Trades)
+tryGetTradeHistory :: IO (Either CSFloatError Trades)
 tryGetTradeHistory = getCfg >>= \cfg -> getTradeHistory cfg (Just "buyer") Nothing (Just 5)
 
 -- Fix cursor
-tryGetStall :: IO (Either ClientError Stall)
+tryGetStall :: IO (Either CSFloatError Stall)
 tryGetStall =
     getCfg >>= \cfg ->
         getStall cfg "76561198203252187" (Just "CAEQBxjaxdvSBiC5gYik7Y_A6w0ogZCWxHI46IsGivFypJ-W") Nothing
 
-tryGetSales :: IO (Either ClientError [Listing])
+tryGetSales :: IO (Either CSFloatError [Listing])
 tryGetSales = getCfg >>= \cfg -> getSales cfg "AK-47 | Redline (Minimal Wear)" Nothing
 
-tryGetPriceHistory :: IO (Either ClientError [HistoryPoint])
+tryGetPriceHistory :: IO (Either CSFloatError [HistoryPoint])
 tryGetPriceHistory = getCfg >>= \cfg -> getPriceHistory cfg "AK-47 | Redline (Minimal Wear)" Nothing
 
 -- ---------------------------------------------------------------------------
@@ -379,7 +385,7 @@ fetchAllPaged ::
     Int ->
     -- | limit (page size)
     Int ->
-    (Int -> IO (Either ClientError resp)) ->
+    (Int -> IO (Either CSFloatError resp)) ->
     (resp -> [a]) ->
     (resp -> Int) ->
     IO [a]
@@ -404,7 +410,7 @@ fetchAllPaged maxPages limit fetchPage getItems getCount = go 1 []
 -- | Walk a cursor-paginated endpoint up to maxPages, collecting every raw item.
 fetchAllCursor ::
     Int ->
-    (Maybe Text -> IO (Either ClientError (resp, Maybe Text))) ->
+    (Maybe Text -> IO (Either CSFloatError (resp, Maybe Text))) ->
     (resp -> [a]) ->
     IO [a]
 fetchAllCursor maxPages fetchPage getItems = go 0 Nothing []
