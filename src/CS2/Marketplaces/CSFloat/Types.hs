@@ -61,8 +61,42 @@ instance ToJSON PostListingRequest where
                     other -> other
                 }
 
-data UpdateListingPriceRequest = UpdateListingPriceRequest
-    { price :: Int
+data UpdateListingRequest = UpdateListingRequest
+    { price :: Maybe Int
+    , description :: Maybe Text
+    , private :: Maybe Bool
+    , max_offer_discount :: Maybe Int
+    , use_default_offer_discount :: Maybe Bool
+    }
+    deriving (Show, Generic)
+    deriving anyclass (ToJSON)
+
+data PostBulkListingsRequest = PostBulkListingsRequest
+    { items :: [PostListingRequest]
+    , notary_payload :: Maybe Text
+    }
+    deriving (Show, Generic)
+    deriving anyclass (ToJSON)
+
+data UpdateBulkListingsRequest = UpdateBulkListingsRequest
+    { modifications :: [ListingModification]
+    }
+    deriving (Show, Generic)
+    deriving anyclass (ToJSON)
+
+data ListingModification = ListingModification
+    { contract_id :: Text
+    , price :: Maybe Int
+    , description :: Maybe Text
+    , private :: Maybe Bool
+    , max_offer_discount :: Maybe Int
+    , use_default_offer_discount :: Maybe Bool
+    }
+    deriving (Show, Generic)
+    deriving anyclass (ToJSON)
+
+data DeleteBulkListingsRequest = DeleteBulkListingsRequest
+    { contract_ids :: [Text]
     }
     deriving (Show, Generic)
     deriving anyclass (ToJSON)
@@ -126,6 +160,20 @@ instance ToHttpApiData Type where
     toQueryParam = \case
         BuyNow -> "buy_now"
         Auction -> "auction"
+
+data Listings = Listings
+    { data_ :: [Listing]
+    }
+    deriving (Show, Generic)
+
+instance FromJSON Listings where
+    parseJSON =
+        genericParseJSON
+            defaultOptions
+                { fieldLabelModifier = \case
+                    "data_" -> "data"
+                    other -> other
+                }
 
 data Listing = Listing
     { id :: Text
@@ -465,20 +513,6 @@ instance FromJSON TransactionDetailsType where
     parseJSON = withText "TransactionDetailsType" $ \case
         "buyer_ping" -> pure BuyerPing
         other -> pure $ TransactionDetailsTypeOther other
-
-data Watchlist = Watchlist
-    { data_ :: [Listing]
-    }
-    deriving (Show, Generic)
-
-instance FromJSON Watchlist where
-    parseJSON =
-        genericParseJSON
-            defaultOptions
-                { fieldLabelModifier = \case
-                    "data_" -> "data"
-                    other -> other
-                }
 
 data Trades = Trades
     { trades :: [Trade]

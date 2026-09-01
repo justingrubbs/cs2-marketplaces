@@ -120,19 +120,34 @@ getListing cfg listingId =
         (csfloatClient.listingsApi (apiKey cfg)).getListing listingId
 
 postListing :: CSFloatConfig -> PostListingRequest -> IO (Either ClientError Listing)
-postListing cfg plr =
+postListing cfg req =
     callWithHeaders cfg [toll Global 1] Global $
-        (csfloatClient.listingsApi (apiKey cfg)).postListing plr
+        (csfloatClient.listingsApi (apiKey cfg)).postListing req
 
 deleteListing :: CSFloatConfig -> Text -> IO (Either ClientError ())
 deleteListing cfg listingId =
     fmap void . callWithHeaders cfg [toll Global 1] Global $
         (csfloatClient.listingsApi (apiKey cfg)).deleteListing listingId
 
-updateListingPrice :: CSFloatConfig -> Text -> UpdateListingPriceRequest -> IO (Either ClientError Listing)
-updateListingPrice cfg listingId req =
+updateListing :: CSFloatConfig -> Text -> UpdateListingRequest -> IO (Either ClientError Listing)
+updateListing cfg listingId req =
     callWithHeaders cfg [toll Global 1] Global $
-        (csfloatClient.listingsApi (apiKey cfg)).updateListingPrice listingId req
+        (csfloatClient.listingsApi (apiKey cfg)).updateListing listingId req
+
+postBulkListings :: CSFloatConfig -> PostBulkListingsRequest -> IO (Either ClientError Listings)
+postBulkListings cfg req =
+    callWithHeaders cfg [toll Global 1] Global $
+        (csfloatClient.listingsApi (apiKey cfg)).postBulkListings req
+
+updateBulkListings :: CSFloatConfig -> UpdateBulkListingsRequest -> IO (Either ClientError Listings)
+updateBulkListings cfg req =
+    callWithHeaders cfg [toll Global 1, toll UpdateBulkListings 1] UpdateBulkListings $
+        (csfloatClient.listingsApi (apiKey cfg)).updateBulkListings req
+
+deleteBulkListings :: CSFloatConfig -> DeleteBulkListingsRequest -> IO (Either ClientError ())
+deleteBulkListings cfg req =
+    fmap void . callWithHeaders cfg [toll Global 1] Global $
+        (csfloatClient.listingsApi (apiKey cfg)).deleteBulkListings req
 
 postWatchlist :: CSFloatConfig -> Text -> IO (Either ClientError ())
 postWatchlist cfg listingId =
@@ -166,7 +181,7 @@ getTransactions cfg mPage mLimit =
     callWithHeaders cfg [toll Global 1] Global $
         (csfloatClient.meApi (apiKey cfg)).getTransactions mPage mLimit
 
-getWatchlist :: CSFloatConfig -> Maybe Int -> IO (Either ClientError Watchlist)
+getWatchlist :: CSFloatConfig -> Maybe Int -> IO (Either ClientError Listings)
 getWatchlist cfg mLimit =
     callWithHeaders cfg [toll Global 1] Global $
         (csfloatClient.meApi (apiKey cfg)).getWatchlist mLimit

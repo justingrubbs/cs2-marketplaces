@@ -30,7 +30,7 @@ type WithHeaders =
 data CSFloatLimiterPolicy = CSFloatLimiterPolicy {capacityRatio :: Double}
 
 defaultCSFloatLimiterPolicy :: CSFloatLimiterPolicy
-defaultCSFloatLimiterPolicy = CSFloatLimiterPolicy 0.05
+defaultCSFloatLimiterPolicy = CSFloatLimiterPolicy 0.1
 
 data CSFloatBucket
     = Global
@@ -40,6 +40,7 @@ data CSFloatBucket
     | GetSales
     | GetSimilarListings
     | GetPriceHistory
+    | UpdateBulkListings
     deriving (Eq, Ord, Enum, Bounded, Show)
 
 newCSFloatLimiter :: IO (Limiter CSFloatBucket)
@@ -58,6 +59,7 @@ csfloatLimiterSpec =
         , (GetSales, mkCapacity 25, mkRate (500 / day))
         , (GetSimilarListings, mkCapacity 1, mkRate (20 / minute))
         , (GetPriceHistory, mkCapacity 25, mkRate (500 / day))
+        , (UpdateBulkListings, mkCapacity 1, mkRate (10 / minute))
         ]
   where
     day, hour, minute :: Double
