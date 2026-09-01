@@ -14,7 +14,7 @@ data SteamTradeOfferState
     | CreatedNeedsConfirmation
     | CanceledBySecondFactor
     | InEscrow
-    deriving (Show, Eq, Ord, Bounded, Enum)
+    deriving (Show, Eq, Ord)
 
 instance FromJSON SteamTradeOfferState where
     parseJSON = withScientific "SteamTradeOfferState" $ \n -> case round n :: Int of

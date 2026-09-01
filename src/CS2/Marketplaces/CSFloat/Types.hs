@@ -148,7 +148,7 @@ instance ToHttpApiData Category where
 data Type
     = BuyNow
     | Auction
-    deriving (Show)
+    deriving (Show, Eq)
 
 instance FromJSON Type where
     parseJSON = withText "Type" $ \case
@@ -547,7 +547,7 @@ data Trade = Trade
 data TradeState
     = Verified
     | TradeStateOther Text
-    deriving (Eq, Show, Ord, Generic)
+    deriving (Eq, Show, Generic, Ord)
 
 instance FromJSON TradeState where
     parseJSON = withText "TradeState" $ \case

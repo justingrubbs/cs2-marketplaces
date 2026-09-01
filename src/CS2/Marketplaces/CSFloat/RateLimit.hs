@@ -85,7 +85,7 @@ reconcileFromHeaders lim policy bucket resp =
     case (readHdr limitH, readHdr remainingH, readHdr resetH) of
         (Just limit, Just remaining, Just reset) -> do
             now <- realToFrac <$> getPOSIXTime
-            let timeLeft = max 60 (reset - now)
+            let timeLeft = max 60 (reset - now) -- problematic when the period length is only a minute, as the rate only ever slows.
                 rate = remaining / timeLeft * 0.9
                 capacity = min remaining (limit * policy.capacityRatio)
             reconcile lim bucket (mkRate rate) (mkCapacity capacity)
