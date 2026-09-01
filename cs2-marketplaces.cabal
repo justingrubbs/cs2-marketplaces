@@ -60,6 +60,7 @@ library
                     , CS2.Marketplaces
                     , CS2.Marketplaces.CSFloat
                     , CS2.Marketplaces.CSFloat.API
+                    , CS2.Marketplaces.CSFloat.Error
                     , CS2.Marketplaces.CSFloat.RateLimit
                     , CS2.Marketplaces.CSFloat.Types
                     , CS2.Marketplaces.DMarket
@@ -79,6 +80,7 @@ library
                     , cryptonite
                     , http-client
                     , http-client-tls
+                    , http-types
                     , random
                     , servant
                     , servant-client
@@ -110,7 +112,6 @@ common repl-deps
         , cs2-marketplaces
         , dotenv
         , text
-        , servant-client
         , pretty-simple
         , containers
 
