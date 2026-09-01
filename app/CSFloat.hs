@@ -108,13 +108,21 @@ tryDeleteListing = do
     cfg <- getCfg
     deleteListing cfg testListing
 
-tryDeleteWatchlist :: IO (Either ClientError ())
-tryDeleteWatchlist = getCfg >>= \cfg -> deleteWatchlist cfg "1011820418002191672"
-
 tryUpdateListingPrice :: IO (Either ClientError Listing)
 tryUpdateListingPrice =
     getCfg >>= \cfg ->
         updateListingPrice cfg testListing UpdateListingPriceRequest{price = 100101}
+
+tryPostWatchlist :: IO (Either ClientError ())
+tryPostWatchlist = getCfg >>= \cfg -> postWatchlist cfg testListing
+
+tryDeleteWatchlist :: IO (Either ClientError ())
+tryDeleteWatchlist = getCfg >>= \cfg -> deleteWatchlist cfg testListing
+
+tryGetSimilarListings :: IO (Either ClientError [Listing])
+tryGetSimilarListings = do
+    cfg <- getCfg
+    getSimilarListings cfg testListing
 
 tryGetMe :: IO (Either ClientError Me)
 tryGetMe = getCfg >>= \cfg -> getMe cfg
@@ -139,6 +147,9 @@ tryGetStall =
 
 tryGetSales :: IO (Either ClientError [Listing])
 tryGetSales = getCfg >>= \cfg -> getSales cfg "AK-47 | Redline (Minimal Wear)" Nothing
+
+tryGetPriceHistory :: IO (Either ClientError [HistoryPoint])
+tryGetPriceHistory = getCfg >>= \cfg -> getPriceHistory cfg "AK-47 | Redline (Minimal Wear)" Nothing
 
 -- ---------------------------------------------------------------------------
 -- 3. Raw header inspection
@@ -194,9 +205,21 @@ inspectUpdateListingPrice cfg =
         ("/api/v1/listings/" <> T.unpack testListing)
         (Just UpdateListingPriceRequest{price = 100000})
 
+inspectPostWatchlist :: CSFloatConfig -> IO ()
+inspectPostWatchlist cfg =
+    inspectRequest cfg "POST" ("/api/v1/listings/" <> T.unpack testListing <> "/watchlist") (Nothing :: Maybe ())
+
 inspectDeleteWatchlist :: CSFloatConfig -> IO ()
 inspectDeleteWatchlist cfg =
     inspectRequest cfg "DELETE" ("/api/v1/listings/" <> T.unpack testListing <> "/watchlist") (Nothing :: Maybe ())
+
+inspectGetSimilarListings :: CSFloatConfig -> IO ()
+inspectGetSimilarListings cfg =
+    inspectRequest
+        cfg
+        "GET"
+        ("/api/v1/listings/" <> T.unpack testListing <> "/similar")
+        (Nothing :: Maybe ())
 
 inspectGetMe :: CSFloatConfig -> IO ()
 inspectGetMe cfg = inspectRequest cfg "GET" "/api/v1/me" (Nothing :: Maybe ())
@@ -219,6 +242,10 @@ inspectGetStall cfg = inspectRequest cfg "GET" "/api/v1/users/76561198203252187/
 inspectGetSales :: CSFloatConfig -> IO ()
 inspectGetSales cfg =
     inspectRequest cfg "GET" "/api/v1/history/AK-47%20%7C%20Redline%20(Minimal%20Wear)/sales" (Nothing :: Maybe ())
+
+inspectGetPriceHistory :: CSFloatConfig -> IO ()
+inspectGetPriceHistory cfg =
+    inspectRequest cfg "GET" "/api/v1/history/AK-47%20%7C%20Redline%20(Minimal%20Wear)/graph" (Nothing :: Maybe ())
 
 -- ---------------------------------------------------------------------------
 -- 4. Pagination & scraping

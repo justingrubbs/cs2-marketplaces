@@ -33,11 +33,13 @@ defaultCSFloatLimiterPolicy :: CSFloatLimiterPolicy
 defaultCSFloatLimiterPolicy = CSFloatLimiterPolicy 0.05
 
 data CSFloatBucket
-    = GlobalBucket
-    | GetListingsBucket
-    | GetInventoryBucket
-    | GetTradeHistoryBucket
-    | GetSalesBucket
+    = Global
+    | GetListings
+    | GetInventory
+    | GetTradeHistory
+    | GetSales
+    | GetSimilarListings
+    | GetPriceHistory
     deriving (Eq, Ord, Enum, Bounded, Show)
 
 newCSFloatLimiter :: IO (Limiter CSFloatBucket)
@@ -49,11 +51,13 @@ csfloatLimiterSpec :: Maybe [(CSFloatBucket, Capacity, Rate)]
 csfloatLimiterSpec =
     traverse
         (\(k, mc, mr) -> (,,) k <$> mc <*> mr)
-        [ (GlobalBucket, mkCapacity 1000, mkRate (50000 / day))
-        , (GetListingsBucket, mkCapacity 10, mkRate (200 / hour))
-        , (GetInventoryBucket, mkCapacity 6, mkRate (120 / day))
-        , (GetTradeHistoryBucket, mkCapacity 5, mkRate (100 / (10 * minute)))
-        , (GetSalesBucket, mkCapacity 25, mkRate (500 / day))
+        [ (Global, mkCapacity 1000, mkRate (50000 / day))
+        , (GetListings, mkCapacity 10, mkRate (200 / hour))
+        , (GetInventory, mkCapacity 6, mkRate (120 / day))
+        , (GetTradeHistory, mkCapacity 5, mkRate (100 / (10 * minute)))
+        , (GetSales, mkCapacity 25, mkRate (500 / day))
+        , (GetSimilarListings, mkCapacity 1, mkRate (20 / minute))
+        , (GetPriceHistory, mkCapacity 25, mkRate (500 / day))
         ]
   where
     day, hour, minute :: Double

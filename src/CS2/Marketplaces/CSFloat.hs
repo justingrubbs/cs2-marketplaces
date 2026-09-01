@@ -92,7 +92,7 @@ defaultGetListingsQuery =
 -------------------------------------------------------------------------------
 getListings :: CSFloatConfig -> GetListingsQuery -> IO (Either ClientError GetListingsResponse)
 getListings cfg GetListingsQuery{..} =
-    callWithHeaders cfg [toll GlobalBucket 1, toll GetListingsBucket 1] GetListingsBucket $
+    callWithHeaders cfg [toll Global 1, toll GetListings 1] GetListings $
         ( csfloatClient.listingsApi
             (apiKey cfg)
         ).getListings
@@ -116,61 +116,71 @@ getListings cfg GetListingsQuery{..} =
 
 getListing :: CSFloatConfig -> Text -> IO (Either ClientError Listing)
 getListing cfg listingId =
-    callWithHeaders cfg [toll GlobalBucket 1] GlobalBucket $
+    callWithHeaders cfg [toll Global 1] Global $
         (csfloatClient.listingsApi (apiKey cfg)).getListing listingId
 
 postListing :: CSFloatConfig -> PostListingRequest -> IO (Either ClientError Listing)
 postListing cfg plr =
-    callWithHeaders cfg [toll GlobalBucket 1] GlobalBucket $
+    callWithHeaders cfg [toll Global 1] Global $
         (csfloatClient.listingsApi (apiKey cfg)).postListing plr
 
 deleteListing :: CSFloatConfig -> Text -> IO (Either ClientError ())
 deleteListing cfg listingId =
-    fmap void . callWithHeaders cfg [toll GlobalBucket 1] GlobalBucket $
+    fmap void . callWithHeaders cfg [toll Global 1] Global $
         (csfloatClient.listingsApi (apiKey cfg)).deleteListing listingId
 
 updateListingPrice :: CSFloatConfig -> Text -> UpdateListingPriceRequest -> IO (Either ClientError Listing)
 updateListingPrice cfg listingId req =
-    callWithHeaders cfg [toll GlobalBucket 1] GlobalBucket $
+    callWithHeaders cfg [toll Global 1] Global $
         (csfloatClient.listingsApi (apiKey cfg)).updateListingPrice listingId req
+
+postWatchlist :: CSFloatConfig -> Text -> IO (Either ClientError ())
+postWatchlist cfg listingId =
+    fmap void . callWithHeaders cfg [toll Global 1] Global $
+        (csfloatClient.listingsApi (apiKey cfg)).postWatchlist listingId
 
 deleteWatchlist :: CSFloatConfig -> Text -> IO (Either ClientError ())
 deleteWatchlist cfg listingId =
-    fmap void . callWithHeaders cfg [toll GlobalBucket 1] GlobalBucket $
+    fmap void . callWithHeaders cfg [toll Global 1] Global $
         (csfloatClient.listingsApi (apiKey cfg)).deleteWatchlist listingId
+
+getSimilarListings :: CSFloatConfig -> Text -> IO (Either ClientError [Listing])
+getSimilarListings cfg listingId =
+    callWithHeaders cfg [toll Global 1, toll GetSimilarListings 1] GetSimilarListings $
+        (csfloatClient.listingsApi (apiKey cfg)).getSimilarListings listingId
 
 -- MeAPI:
 -------------------------------------------------------------------------------
 getMe :: CSFloatConfig -> IO (Either ClientError Me)
 getMe cfg =
-    callWithHeaders cfg [toll GlobalBucket 1] GlobalBucket $
+    callWithHeaders cfg [toll Global 1] Global $
         (csfloatClient.meApi (apiKey cfg)).getMe
 
 getInventory :: CSFloatConfig -> IO (Either ClientError [Item])
 getInventory cfg =
-    callWithHeaders cfg [toll GlobalBucket 1, toll GetInventoryBucket 1] GetInventoryBucket $
+    callWithHeaders cfg [toll Global 1, toll GetInventory 1] GetInventory $
         (csfloatClient.meApi (apiKey cfg)).getInventory
 
 getTransactions :: CSFloatConfig -> Maybe Int -> Maybe Int -> IO (Either ClientError Transactions)
 getTransactions cfg mPage mLimit =
-    callWithHeaders cfg [toll GlobalBucket 1] GlobalBucket $
+    callWithHeaders cfg [toll Global 1] Global $
         (csfloatClient.meApi (apiKey cfg)).getTransactions mPage mLimit
 
 getWatchlist :: CSFloatConfig -> Maybe Int -> IO (Either ClientError Watchlist)
 getWatchlist cfg mLimit =
-    callWithHeaders cfg [toll GlobalBucket 1] GlobalBucket $
+    callWithHeaders cfg [toll Global 1] Global $
         (csfloatClient.meApi (apiKey cfg)).getWatchlist mLimit
 
 getTradeHistory :: CSFloatConfig -> Maybe Text -> Maybe Int -> Maybe Int -> IO (Either ClientError Trades)
 getTradeHistory cfg mRole mPage mLimit =
-    callWithHeaders cfg [toll GlobalBucket 1, toll GetTradeHistoryBucket 1] GetTradeHistoryBucket $
+    callWithHeaders cfg [toll Global 1, toll GetTradeHistory 1] GetTradeHistory $
         (csfloatClient.meApi (apiKey cfg)).getTradeHistory mRole mPage mLimit
 
 -- UsersAPI:
 -------------------------------------------------------------------------------
 getStall :: CSFloatConfig -> Text -> Maybe Text -> Maybe Int -> IO (Either ClientError Stall)
 getStall cfg steamId mcursor mlimit =
-    callWithHeaders cfg [toll GlobalBucket 1] GlobalBucket $
+    callWithHeaders cfg [toll Global 1] Global $
         csfloatClient.usersApi.getStall
             steamId
             mcursor
@@ -180,7 +190,14 @@ getStall cfg steamId mcursor mlimit =
 -------------------------------------------------------------------------------
 getSales :: CSFloatConfig -> Text -> Maybe Int -> IO (Either ClientError [Listing])
 getSales cfg marketHashName mPaintIndex =
-    callWithHeaders cfg [toll GlobalBucket 1, toll GetSalesBucket 1] GetSalesBucket $
+    callWithHeaders cfg [toll Global 1, toll GetSales 1] GetSales $
         csfloatClient.historyApi.getSales
+            marketHashName
+            mPaintIndex
+
+getPriceHistory :: CSFloatConfig -> Text -> Maybe Int -> IO (Either ClientError [HistoryPoint])
+getPriceHistory cfg marketHashName mPaintIndex =
+    callWithHeaders cfg [toll Global 1, toll GetPriceHistory 1] GetPriceHistory $
+        csfloatClient.historyApi.getPriceHistory
             marketHashName
             mPaintIndex

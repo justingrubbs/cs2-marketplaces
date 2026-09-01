@@ -74,11 +74,21 @@ data ListingsAPI mode = ListingsAPI
             :- Capture "listingId" Text
                 :> ReqBody '[JSON] UpdateListingPriceRequest
                 :> Patch '[JSON] (WithHeaders Listing)
+    , postWatchlist ::
+        mode
+            :- Capture "listingId" Text
+                :> "watchlist"
+                :> Post '[JSON] (WithHeaders NoContent)
     , deleteWatchlist ::
         mode
             :- Capture "listingId" Text
                 :> "watchlist"
                 :> Delete '[JSON] (WithHeaders NoContent)
+    , getSimilarListings ::
+        mode
+            :- Capture "listingId" Text
+                :> "similar"
+                :> Get '[JSON] (WithHeaders [Listing])
     }
     deriving (Generic)
 
@@ -127,5 +137,11 @@ data HistoryAPI mode = HistoryAPI
                 :> "sales"
                 :> QueryParam "paint_index" Int
                 :> Get '[JSON] (WithHeaders [Listing])
+    , getPriceHistory ::
+        mode
+            :- Capture "market_hash_name" Text
+                :> "graph"
+                :> QueryParam "paint_index" Int
+                :> Get '[JSON] (WithHeaders [HistoryPoint])
     }
     deriving (Generic)

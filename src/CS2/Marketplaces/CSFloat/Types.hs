@@ -578,3 +578,11 @@ instance FromJSON ContractState where
     parseJSON = withText "ContractState" $ \case
         "sold" -> pure Sold
         other -> pure $ ContractStateOther other
+
+data HistoryPoint = HistoryPoint
+    { day :: UTCTime
+    , avg_price :: Double
+    , count :: Int
+    }
+    deriving (Show, Generic)
+    deriving anyclass (FromJSON)
