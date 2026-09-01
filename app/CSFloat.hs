@@ -3,10 +3,11 @@
 Layout:
 
   1. Session config      - loading \/ caching a 'CSFloatConfig' for the session
-  2. Per-endpoint calls   - @try*@: one thin wrapper per library endpoint
-  3. Raw header inspection - @inspect*@: bypass the library, dump response headers
-  4. Pagination & scraping - walk paginated endpoints, collect raw items
-  5. Response analysis     - summarise scraped items (enumerate variants, etc.)
+  2. Test data           - defines data used in all @try*@ and @inspect*@
+  3. Per-endpoint calls   - @try*@: one thin wrapper per library endpoint
+  4. Raw header inspection - @inspect*@: bypass the library, dump response headers
+  5. Pagination & scraping - walk paginated endpoints, collect raw items
+  6. Response analysis     - summarise scraped items (enumerate variants, etc.)
 -}
 module Main where
 
@@ -14,6 +15,7 @@ import CS2.Marketplaces.CSFloat
 import CS2.Marketplaces.CSFloat.RateLimit (peekLive)
 import Configuration.Dotenv (Config (configPath), defaultConfig, loadFile)
 import Control.Concurrent
+import Control.Monad (replicateM_, void)
 import Data.Aeson (ToJSON, encode)
 import Data.ByteString (ByteString)
 import Data.IORef
@@ -61,16 +63,18 @@ getCfg =
 peekLimiter :: IO ()
 peekLimiter = getCfg >>= peekLive . limiter >>= mapM_ print
 
+run :: (Show a) => Int -> IO (Either a b) -> IO ()
+run n action = replicateM_ n (action >>= print . void)
+
 -- ---------------------------------------------------------------------------
--- 2. Per-endpoint calls
+-- 2. Test data
 -- ---------------------------------------------------------------------------
--- Should not be ClientError; servant should be not relevant to consumer.
 
 testListing :: Text
-testListing = "1014768786156421861"
+testListing = "1014773761330774474"
 
 testListings :: [Text]
-testListings = ["1014768786189976294", "1014768786156421861"]
+testListings = ["1014773761423049163", "1014773761330774474"]
 
 testPostBuyNowListing, testPostAuctionListing :: PostListingRequest
 testPostBuyNowListing =
@@ -144,6 +148,11 @@ testUpdateBulkListingsRequest =
 
 testDeleteBulkListingsRequest :: DeleteBulkListingsRequest
 testDeleteBulkListingsRequest = DeleteBulkListingsRequest testListings
+
+-- ---------------------------------------------------------------------------
+-- 3. Per-endpoint calls
+-- ---------------------------------------------------------------------------
+-- Should not be ClientError; servant should be not relevant to consumer.
 
 tryGetListings :: IO (Either ClientError GetListingsResponse)
 tryGetListings = getCfg >>= \cfg -> getListings cfg defaultGetListingsQuery
@@ -239,7 +248,7 @@ tryGetPriceHistory :: IO (Either ClientError [HistoryPoint])
 tryGetPriceHistory = getCfg >>= \cfg -> getPriceHistory cfg "AK-47 | Redline (Minimal Wear)" Nothing
 
 -- ---------------------------------------------------------------------------
--- 3. Raw header inspection
+-- 4. Raw header inspection
 -- ---------------------------------------------------------------------------
 -- Hit the API directly (no library, no limiter) and print response headers.
 
@@ -359,7 +368,7 @@ inspectGetPriceHistory cfg =
     inspectRequest cfg "GET" "/api/v1/history/AK-47%20%7C%20Redline%20(Minimal%20Wear)/graph" (Nothing :: Maybe ())
 
 -- ---------------------------------------------------------------------------
--- 4. Pagination & scraping
+-- 5. Pagination & scraping
 -- ---------------------------------------------------------------------------
 
 {- | Walk up to maxPages numbered pages of a count-paginated endpoint,
@@ -442,7 +451,7 @@ fetchAllTrades = do
     fetchAllPaged 10 limit (\page -> getTradeHistory cfg Nothing (Just page) (Just limit)) (.trades) (.count)
 
 -- ---------------------------------------------------------------------------
--- 5. Response analysis
+-- 6. Response analysis
 -- ---------------------------------------------------------------------------
 -- Enumerate the distinct variants present in a batch of scraped items.
 
