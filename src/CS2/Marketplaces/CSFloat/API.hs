@@ -69,16 +69,41 @@ data ListingsAPI mode = ListingsAPI
         mode
             :- Capture "listingId" Text
                 :> Delete '[JSON] (WithHeaders NoContent)
-    , updateListingPrice ::
+    , updateListing ::
         mode
             :- Capture "listingId" Text
-                :> ReqBody '[JSON] UpdateListingPriceRequest
+                :> ReqBody '[JSON] UpdateListingRequest
                 :> Patch '[JSON] (WithHeaders Listing)
+    , postBulkListings ::
+        mode
+            :- "bulk-list"
+                :> ReqBody '[JSON] PostBulkListingsRequest
+                :> Post '[JSON] (WithHeaders Listings)
+    , updateBulkListings ::
+        mode
+            :- "bulk-modify"
+                :> ReqBody '[JSON] UpdateBulkListingsRequest
+                :> Patch '[JSON] (WithHeaders Listings)
+    , deleteBulkListings ::
+        mode
+            :- "bulk-delist"
+                :> ReqBody '[JSON] DeleteBulkListingsRequest
+                :> Patch '[JSON] (WithHeaders NoContent)
+    , postWatchlist ::
+        mode
+            :- Capture "listingId" Text
+                :> "watchlist"
+                :> Post '[JSON] (WithHeaders NoContent)
     , deleteWatchlist ::
         mode
             :- Capture "listingId" Text
                 :> "watchlist"
                 :> Delete '[JSON] (WithHeaders NoContent)
+    , getSimilarListings ::
+        mode
+            :- Capture "listingId" Text
+                :> "similar"
+                :> Get '[JSON] (WithHeaders [Listing])
     }
     deriving (Generic)
 
@@ -98,7 +123,7 @@ data MeAPI mode = MeAPI
         mode
             :- "watchlist"
                 :> QueryParam "limit" Int
-                :> Get '[JSON] (WithHeaders Watchlist)
+                :> Get '[JSON] (WithHeaders Listings)
     , getTradeHistory ::
         mode
             :- "trades"
@@ -127,5 +152,11 @@ data HistoryAPI mode = HistoryAPI
                 :> "sales"
                 :> QueryParam "paint_index" Int
                 :> Get '[JSON] (WithHeaders [Listing])
+    , getPriceHistory ::
+        mode
+            :- Capture "market_hash_name" Text
+                :> "graph"
+                :> QueryParam "paint_index" Int
+                :> Get '[JSON] (WithHeaders [HistoryPoint])
     }
     deriving (Generic)

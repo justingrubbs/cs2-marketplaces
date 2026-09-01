@@ -67,7 +67,83 @@ peekLimiter = getCfg >>= peekLive . limiter >>= mapM_ print
 -- Should not be ClientError; servant should be not relevant to consumer.
 
 testListing :: Text
-testListing = "1014720915218501440"
+testListing = "1014768786156421861"
+
+testListings :: [Text]
+testListings = ["1014768786189976294", "1014768786156421861"]
+
+testPostBuyNowListing, testPostAuctionListing :: PostListingRequest
+testPostBuyNowListing =
+    PostBuyNowListing
+        { asset_id = "30744610817"
+        , price = 100000
+        , max_offer_discount = Nothing
+        , description = Just "Buy Now - MP7"
+        , private = True
+        }
+testPostAuctionListing =
+    PostAuctionListing
+        { asset_id = "24609966769"
+        , price = 100000
+        , max_offer_discount = Nothing
+        , reserve_price = 100000
+        , duration_days = 3
+        , description = Just "Auction - Famas"
+        , private = True
+        }
+
+testPostBulkListingsRequest :: PostBulkListingsRequest
+testPostBulkListingsRequest =
+    PostBulkListingsRequest
+        { items =
+            [ PostBuyNowListing
+                { asset_id = "30744610817"
+                , price = 100000
+                , max_offer_discount = Nothing
+                , description = Just "Buy Now - MP7"
+                , private = True
+                }
+            , PostBuyNowListing
+                { asset_id = "24609966769"
+                , price = 100000
+                , max_offer_discount = Nothing
+                , description = Just "Buy Now - MP7"
+                , private = True
+                }
+            ]
+        , notary_payload = Nothing
+        }
+
+testUpdateListingRequest :: UpdateListingRequest
+testUpdateListingRequest =
+    UpdateListingRequest
+        { price = Just 100101
+        , description = Just "Updated description"
+        , private = Just True
+        , max_offer_discount = Nothing
+        , use_default_offer_discount = Nothing
+        }
+
+testUpdateBulkListingsRequest :: UpdateBulkListingsRequest
+testUpdateBulkListingsRequest =
+    UpdateBulkListingsRequest
+        { modifications =
+            map
+                ( \contractId ->
+                    ListingModification
+                        { contract_id = contractId
+                        , price = Just 100101
+                        , description = Just "updateBulkListings"
+                        , private = Just True
+                        , max_offer_discount = Nothing
+                        , use_default_offer_discount = Nothing
+                        }
+                )
+                testListings
+        }
+
+testDeleteBulkListingsRequest :: DeleteBulkListingsRequest
+testDeleteBulkListingsRequest = DeleteBulkListingsRequest testListings
 
 tryGetListings :: IO (Either ClientError GetListingsResponse)
 tryGetListings = getCfg >>= \cfg -> getListings cfg defaultGetListingsQuery
@@ -78,14 +154,7 @@ tryGetListing = getCfg >>= \cfg -> getListing cfg testListing
 tryPostBuyNowListing :: IO (Either ClientError Listing)
 tryPostBuyNowListing = do
     cfg <- getCfg
-    let plr =
-            PostBuyNowListing
-                { asset_id = "30744610817"
-                , price = 100000
-                , max_offer_discount = Nothing
-                , description = Just "Test posting buy now listing"
-                , private = True
-                }
+    let plr = testPostBuyNowListing
     postListing cfg plr
 
 tryPostAuctionListing :: IO (Either ClientError Listing)
@@ -108,13 +177,39 @@ tryDeleteListing = do
     cfg <- getCfg
     deleteListing cfg testListing
 
-tryDeleteWatchlist :: IO (Either ClientError ())
-tryDeleteWatchlist = getCfg >>= \cfg -> deleteWatchlist cfg "1011820418002191672"
-
-tryUpdateListingPrice :: IO (Either ClientError Listing)
-tryUpdateListingPrice =
+tryUpdateListing :: IO (Either ClientError Listing)
+tryUpdateListing =
     getCfg >>= \cfg ->
-        updateListingPrice cfg testListing UpdateListingPriceRequest{price = 100101}
+        updateListing
+            cfg
+            testListing
+            testUpdateListingRequest
+
+tryPostBulkListings :: IO (Either ClientError Listings)
+tryPostBulkListings = do
+    cfg <- getCfg
+    postBulkListings cfg testPostBulkListingsRequest
+
+tryUpdateBulkListings :: IO (Either ClientError Listings)
+tryUpdateBulkListings = do
+    cfg <- getCfg
+    updateBulkListings cfg testUpdateBulkListingsRequest
+
+tryDeleteBulkListings :: IO (Either ClientError ())
+tryDeleteBulkListings = do
+    cfg <- getCfg
+    deleteBulkListings cfg testDeleteBulkListingsRequest
+
+tryPostWatchlist :: IO (Either ClientError ())
+tryPostWatchlist = getCfg >>= \cfg -> postWatchlist cfg testListing
+
+tryDeleteWatchlist :: IO (Either ClientError ())
+tryDeleteWatchlist = getCfg >>= \cfg -> deleteWatchlist cfg testListing
+
+tryGetSimilarListings :: IO (Either ClientError [Listing])
+tryGetSimilarListings = do
+    cfg <- getCfg
+    getSimilarListings cfg testListing
 
 tryGetMe :: IO (Either ClientError Me)
 tryGetMe = getCfg >>= \cfg -> getMe cfg
@@ -125,7 +220,7 @@ tryGetInventory = getCfg >>= \cfg -> getInventory cfg
 tryGetTransactions :: IO (Either ClientError Transactions)
 tryGetTransactions = getCfg >>= \cfg -> getTransactions cfg (Just 1) (Just 2)
 
-tryGetWatchlist :: IO (Either ClientError Watchlist)
+tryGetWatchlist :: IO (Either ClientError Listings)
 tryGetWatchlist = getCfg >>= \cfg -> getWatchlist cfg (Just 50)
 
 tryGetTradeHistory :: IO (Either ClientError Trades)
@@ -139,6 +234,9 @@ tryGetStall =
 
 tryGetSales :: IO (Either ClientError [Listing])
 tryGetSales = getCfg >>= \cfg -> getSales cfg "AK-47 | Redline (Minimal Wear)" Nothing
+
+tryGetPriceHistory :: IO (Either ClientError [HistoryPoint])
+tryGetPriceHistory = getCfg >>= \cfg -> getPriceHistory cfg "AK-47 | Redline (Minimal Wear)" Nothing
 
 -- ---------------------------------------------------------------------------
 -- 3. Raw header inspection
@@ -186,17 +284,53 @@ inspectDeleteListing :: CSFloatConfig -> IO ()
 inspectDeleteListing cfg =
     inspectRequest cfg "DELETE" ("/api/v1/listings/" <> T.unpack testListing) (Nothing :: Maybe ())
 
-inspectUpdateListingPrice :: CSFloatConfig -> IO ()
-inspectUpdateListingPrice cfg =
+inspectUpdateListing :: CSFloatConfig -> IO ()
+inspectUpdateListing cfg =
     inspectRequest
         cfg
         "PATCH"
         ("/api/v1/listings/" <> T.unpack testListing)
-        (Just UpdateListingPriceRequest{price = 100000})
+        (Just testUpdateListingRequest)
+
+inspectPostBulkListings :: CSFloatConfig -> IO ()
+inspectPostBulkListings cfg =
+    inspectRequest
+        cfg
+        "POST"
+        "/api/v1/listings/bulk-list"
+        (Just testPostBulkListingsRequest)
+
+inspectUpdateBulkListings :: CSFloatConfig -> IO ()
+inspectUpdateBulkListings cfg =
+    inspectRequest
+        cfg
+        "PATCH"
+        "/api/v1/listings/bulk-modify"
+        (Just testUpdateBulkListingsRequest)
+
+inspectDeleteBulkListings :: CSFloatConfig -> IO ()
+inspectDeleteBulkListings cfg =
+    inspectRequest
+        cfg
+        "PATCH"
+        "/api/v1/listings/bulk-delist"
+        (Just testDeleteBulkListingsRequest)
+
+inspectPostWatchlist :: CSFloatConfig -> IO ()
+inspectPostWatchlist cfg =
+    inspectRequest cfg "POST" ("/api/v1/listings/" <> T.unpack testListing <> "/watchlist") (Nothing :: Maybe ())
 
 inspectDeleteWatchlist :: CSFloatConfig -> IO ()
 inspectDeleteWatchlist cfg =
     inspectRequest cfg "DELETE" ("/api/v1/listings/" <> T.unpack testListing <> "/watchlist") (Nothing :: Maybe ())
+
+inspectGetSimilarListings :: CSFloatConfig -> IO ()
+inspectGetSimilarListings cfg =
+    inspectRequest
+        cfg
+        "GET"
+        ("/api/v1/listings/" <> T.unpack testListing <> "/similar")
+        (Nothing :: Maybe ())
 
 inspectGetMe :: CSFloatConfig -> IO ()
 inspectGetMe cfg = inspectRequest cfg "GET" "/api/v1/me" (Nothing :: Maybe ())
@@ -219,6 +353,10 @@ inspectGetStall cfg = inspectRequest cfg "GET" "/api/v1/users/76561198203252187/
 inspectGetSales :: CSFloatConfig -> IO ()
 inspectGetSales cfg =
     inspectRequest cfg "GET" "/api/v1/history/AK-47%20%7C%20Redline%20(Minimal%20Wear)/sales" (Nothing :: Maybe ())
+
+inspectGetPriceHistory :: CSFloatConfig -> IO ()
+inspectGetPriceHistory cfg =
+    inspectRequest cfg "GET" "/api/v1/history/AK-47%20%7C%20Redline%20(Minimal%20Wear)/graph" (Nothing :: Maybe ())
 
 -- ---------------------------------------------------------------------------
 -- 4. Pagination & scraping
